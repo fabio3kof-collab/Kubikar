@@ -80,7 +80,7 @@ const EPS_LIMPIEZA_MM = 1
  * @property {'geometria'|'modulo'|'resultados'} pestana
  * @property {string} unidadActiva
  * @property {Object[]} biblioteca
- * @property {{modo:'dibujando'|'listo',imanGrilla:boolean,ortogonal:boolean,verDespiece:boolean,pasoGrillaMm:number,verticeSel:string|null,segmentoSel:number|null,vista:{x:number,y:number,zoom:number}}} dibujo
+ * @property {{modo:'dibujando'|'listo',imanGrilla:boolean,ortogonal:boolean,verPiezas:boolean,verEjes:boolean,pasoGrillaMm:number,verticeSel:string|null,segmentoSel:number|null,vista:{x:number,y:number,zoom:number}}} dibujo
  * @property {{pasado:Array,futuro:Array}} historial
  * @property {{tipo:string,mensaje:string}|null} avisoAlmacenamiento
  * @property {boolean} guardando        hay una escritura agendada o en curso
@@ -102,7 +102,8 @@ const ESTADO_INICIAL = {
     modo: 'dibujando',
     imanGrilla: true,
     ortogonal: false,
-    verDespiece: true,
+    verPiezas: true,
+    verEjes: true,
     pasoGrillaMm: 100,
     verticeSel: null,
     segmentoSel: null,
@@ -421,7 +422,8 @@ function reductor(estado, accion) {
           // Encendido salvo que esté apagado explícitamente: es el único de los
           // tres que arranca en true, y `=== true` lo apagaría al hidratar unas
           // preferencias guardadas antes de que existiera.
-          verDespiece: preferencias.verDespiece !== false,
+          verPiezas: preferencias.verPiezas !== false,
+          verEjes: preferencias.verEjes !== false,
           pasoGrillaMm:
             Number.isFinite(preferencias.pasoGrilla) && preferencias.pasoGrilla > 0
               ? preferencias.pasoGrilla
@@ -716,11 +718,14 @@ function reductor(estado, accion) {
       return { ...estado, dibujo: { ...estado.dibujo, ortogonal } }
     }
 
-    case 'DESPIECE_ALTERNADO': {
-      const verDespiece =
-        typeof accion.valor === 'boolean' ? accion.valor : !estado.dibujo.verDespiece
-      if (verDespiece === estado.dibujo.verDespiece) return estado
-      return { ...estado, dibujo: { ...estado.dibujo, verDespiece } }
+    // Una sola acción para los dos interruptores del despiece, parametrizada
+    // por el ROL de dibujo. Dos casos gemelos que solo se distinguen en el
+    // nombre de la clave serían dos sitios donde equivocarse al agregar un rol.
+    case 'CAPA_TRAZADO_ALTERNADA': {
+      const clave = accion.rol === 'eje' ? 'verEjes' : 'verPiezas'
+      const valor = typeof accion.valor === 'boolean' ? accion.valor : !estado.dibujo[clave]
+      if (valor === estado.dibujo[clave]) return estado
+      return { ...estado, dibujo: { ...estado.dibujo, [clave]: valor } }
     }
 
     case 'PASO_GRILLA_CAMBIADO': {
@@ -915,7 +920,8 @@ export function ProveedorApp({ children }) {
               proyectoActivoId: null,
               imanGrilla: true,
               ortogonal: false,
-              verDespiece: true,
+              verPiezas: true,
+              verEjes: true,
               pasoGrilla: ESTADO_INICIAL.dibujo.pasoGrillaMm,
             },
             proyecto: null,
@@ -979,7 +985,7 @@ export function ProveedorApp({ children }) {
 
   const unidadActiva = estado.unidadActiva
   const proyectoActivoId = estado.proyecto ? estado.proyecto.id : null
-  const { imanGrilla, ortogonal, verDespiece, pasoGrillaMm } = estado.dibujo
+  const { imanGrilla, ortogonal, verPiezas, verEjes, pasoGrillaMm } = estado.dibujo
 
   useEffect(() => {
     if (estado.cargando) return undefined
@@ -999,7 +1005,8 @@ export function ProveedorApp({ children }) {
           proyectoActivoId,
           imanGrilla,
           ortogonal,
-          verDespiece,
+          verPiezas,
+          verEjes,
           pasoGrilla: pasoGrillaMm,
         })
         .catch(manejarFalla)
@@ -1017,7 +1024,8 @@ export function ProveedorApp({ children }) {
     proyectoActivoId,
     imanGrilla,
     ortogonal,
-    verDespiece,
+    verPiezas,
+    verEjes,
     pasoGrillaMm,
     manejarFalla,
   ])
@@ -1297,8 +1305,13 @@ export function ProveedorApp({ children }) {
       dispatch({ tipo: 'ORTOGONAL_ALTERNADO', valor })
     }
 
-    function alternarDespiece(valor) {
-      dispatch({ tipo: 'DESPIECE_ALTERNADO', valor })
+    /**
+     * Enciende o apaga una capa del despiece por su rol de dibujo.
+     * @param {'pieza'|'eje'} rol
+     * @param {boolean} [valor]  omitido, alterna
+     */
+    function alternarCapaTrazado(rol, valor) {
+      dispatch({ tipo: 'CAPA_TRAZADO_ALTERNADA', rol, valor })
     }
 
     function cambiarPasoGrilla(pasoMm) {
@@ -1407,7 +1420,7 @@ export function ProveedorApp({ children }) {
       usosDeMaterial,
       alternarIman,
       alternarOrtogonal,
-      alternarDespiece,
+      alternarCapaTrazado,
       cambiarPasoGrilla,
       ajustarVista,
       descartarAviso,

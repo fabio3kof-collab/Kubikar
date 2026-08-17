@@ -44,7 +44,8 @@ export { ErrorAlmacenamiento }
  * @property {string|null} proyectoActivoId
  * @property {boolean} imanGrilla
  * @property {boolean} ortogonal
- * @property {boolean} verDespiece      dibujar el reparto del módulo en la planta
+ * @property {boolean} verPiezas        dibujar las piezas de material en la planta
+ * @property {boolean} verEjes          dibujar los ejes de elementos lineales
  * @property {number} pasoGrilla        paso de grilla en milímetros
  */
 
@@ -54,8 +55,23 @@ export const PREFERENCIAS_POR_DEFECTO = {
   proyectoActivoId: null,
   imanGrilla: true,
   ortogonal: false,
-  verDespiece: true,
+  verPiezas: true,
+  verEjes: true,
   pasoGrilla: 100,
+}
+
+/**
+ * Lee uno de los dos interruptores del despiece desde lo guardado, heredando
+ * del interruptor único `verDespiece` que existió antes que ellos.
+ *
+ * @param {Object} crudo    preferencias tal como salieron del almacén
+ * @param {'verPiezas'|'verEjes'} clave
+ * @returns {boolean}
+ */
+function booleanoDeDespiece(crudo, clave) {
+  if (typeof crudo[clave] === 'boolean') return crudo[clave]
+  if (crudo.verDespiece === false) return false
+  return true
 }
 
 /* =============================================================================
@@ -428,10 +444,15 @@ export const repo = {
       proyectoActivoId: typeof crudo.proyectoActivoId === 'string' ? crudo.proyectoActivoId : null,
       imanGrilla: typeof crudo.imanGrilla === 'boolean' ? crudo.imanGrilla : true,
       ortogonal: typeof crudo.ortogonal === 'boolean' ? crudo.ortogonal : false,
-      // Ausente en lo ya guardado por una versión anterior: cae en encendido,
+      // Ausentes en lo ya guardado por una versión anterior: caen en encendido,
       // que es el valor por defecto. Un `=== true` acá apagaría el despiece a
       // todo el que ya tenía preferencias escritas.
-      verDespiece: typeof crudo.verDespiece === 'boolean' ? crudo.verDespiece : true,
+      //
+      // `verDespiece` fue el interruptor único que precedió a estos dos. Si
+      // quedó apagado, se hereda apagando ambos: quien escondió el despiece
+      // completo no espera que reaparezca a medias al actualizar.
+      verPiezas: booleanoDeDespiece(crudo, 'verPiezas'),
+      verEjes: booleanoDeDespiece(crudo, 'verEjes'),
       pasoGrilla: Number.isFinite(paso) && paso > 0 ? paso : PREFERENCIAS_POR_DEFECTO.pasoGrilla,
     }
   },
@@ -449,7 +470,8 @@ export const repo = {
       proyectoActivoId: mezcla.proyectoActivoId ?? null,
       imanGrilla: mezcla.imanGrilla === true,
       ortogonal: mezcla.ortogonal === true,
-      verDespiece: mezcla.verDespiece !== false,
+      verPiezas: mezcla.verPiezas !== false,
+      verEjes: mezcla.verEjes !== false,
       pasoGrilla:
         Number.isFinite(Number(mezcla.pasoGrilla)) && Number(mezcla.pasoGrilla) > 0
           ? Number(mezcla.pasoGrilla)

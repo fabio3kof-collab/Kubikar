@@ -188,9 +188,12 @@
      pieza toma el azul marino de los vertices y el eje toma el ambar de las
      guias. A igual grosor se distinguen de un vistazo, y con la grilla apagada
      por zoom la retícula del despiece sigue leyendose sola.
-     La junta de plancha es referencia, no objeto grafico esencial: 1,94:1 sobre
-     el papel del lienzo, mismo umbral que la grilla mayor. El eje de perfil si
-     llega a 3,84:1, porque es la linea que se replantea en terreno. */
-  --color-layout-pieza: #b3b5d1; /* 1,94:1 sobre canvas-ground */
-  --color-layout-eje: #a6763a; /* 3,84:1 sobre canvas-ground */
+     Los DOS pasan 3:1. La junta de pieza nacio en 1,94:1, tratada como
+     referencia igual que la grilla, y no alcanzaba: el largo util de una
+     plancha suele ser multiplo exacto de la separacion entre ejes, asi que la
+     junta larga cae JUSTO encima de un eje y a ese contraste desaparecia bajo
+     el ambar. Es la linea por donde se corta y por donde topan dos planchas:
+     es objeto grafico esencial y le corresponde el umbral. */
+  --color-layout-pieza: #8a8ebb; /* 3,02:1 sobre canvas-ground */
+  --color-layout-eje: #a6763a; /* 3,82:1 sobre canvas-ground */
 }

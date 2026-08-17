@@ -37,6 +37,7 @@ import {
   Maximize,
   Pentagon,
   Redo2,
+  Rows3,
   Undo2,
 } from 'lucide-react'
 
@@ -57,9 +58,10 @@ function cx(...partes) {
  * @property {(valor:boolean) => void} onImanGrilla
  * @property {boolean}  ortogonal
  * @property {(valor:boolean) => void} onOrtogonal
- * @property {boolean}  verDespiece
- * @property {(valor:boolean) => void} onVerDespiece
- * @property {boolean}  [hayDespiece]     el módulo del recinto tiene algo que dibujar
+ * @property {{rol:'pieza'|'eje',rotulo:string,activo:boolean,hay:boolean}[]} [capasTrazado]
+ *   una entrada por rol de dibujo que el módulo del recinto sabe trazar. El
+ *   rótulo lo pone el módulo: la barra no sabe qué es una plancha ni un perfil.
+ * @property {(rol:'pieza'|'eje', valor:boolean) => void} [onCapaTrazado]
  * @property {() => void} onAjustarVista
  * @property {boolean}  puedeDeshacer
  * @property {() => void} onDeshacer
@@ -141,9 +143,8 @@ export function LienzoControles({
   onImanGrilla,
   ortogonal,
   onOrtogonal,
-  verDespiece,
-  onVerDespiece,
-  hayDespiece = false,
+  capasTrazado = [],
+  onCapaTrazado,
   onAjustarVista,
   puedeDeshacer,
   onDeshacer,
@@ -218,24 +219,41 @@ export function LienzoControles({
         etiquetaAccesible="Ajustar vista a la figura"
         title="Ajustar vista a la figura (tecla F)"
       />
-      {/* Va con "ajustar vista" y no con imán y ortogonal: aquéllos cambian
-          CÓMO SE DIBUJA, éste cambia QUÉ SE VE. Nunca se deshabilita cuando no
-          hay nada que mostrar —parpadearía al cerrar y abrir el polígono, y un
-          detente apagado sin motivo visible es un misterio—: el motivo se dice
-          en el título y el interruptor sigue accionable. */}
-      <Detente
-        tamano="sm"
-        icono={Grid2x2}
-        activo={verDespiece}
-        deshabilitado={deshabilitado}
-        onClick={() => onVerDespiece(!verDespiece)}
-        etiquetaAccesible="Ver el despiece en la planta"
-        title={
-          hayDespiece
-            ? 'Ver el despiece: dibuja el reparto de material dentro de la planta'
-            : 'Ver el despiece. Este recinto todavía no tiene nada que repartir: cierra el polígono y elige los materiales del módulo.'
-        }
-      />
+      {/* Van con "ajustar vista" y no con imán y ortogonal: aquéllos cambian
+          CÓMO SE DIBUJA, éstos cambian QUÉ SE VE.
+
+          Uno por rol de dibujo, y el rótulo lo pone el módulo. La barra no sabe
+          que existen las planchas: sabe que hay piezas y ejes, y escribe el
+          nombre que el módulo le pasó. Un módulo que no trace nada no aporta
+          ninguna entrada y acá no aparece ningún detente.
+
+          Nunca se deshabilitan cuando no hay nada que mostrar —parpadearían al
+          cerrar y abrir el polígono, y un detente apagado sin motivo visible es
+          un misterio—: el motivo se dice en el título y el interruptor sigue
+          accionable. */}
+      {capasTrazado.length > 0 ? (
+        <div role="group" aria-label="Despiece en la planta" className="flex items-center gap-1">
+          {capasTrazado.map((capa) => {
+            const icono = capa.rol === 'eje' ? Rows3 : Grid2x2
+            return (
+              <Detente
+                key={capa.rol}
+                tamano="sm"
+                icono={icono}
+                activo={capa.activo}
+                deshabilitado={deshabilitado}
+                onClick={() => onCapaTrazado(capa.rol, !capa.activo)}
+                etiquetaAccesible={`Dibujar ${capa.rotulo.toLowerCase()} en la planta`}
+                title={
+                  capa.hay
+                    ? `Dibujar ${capa.rotulo.toLowerCase()} en la planta`
+                    : `Dibujar ${capa.rotulo.toLowerCase()} en la planta. Este recinto todavía no tiene nada que repartir: cierra el polígono y elige los materiales del módulo.`
+                }
+              />
+            )
+          })}
+        </div>
+      ) : null}
 
       <Regla orientacion="vertical" className="mx-1" />
 

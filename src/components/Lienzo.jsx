@@ -51,7 +51,7 @@ import {
 } from '../core/geometry.js'
 import { formatearArea, formatearLongitud, obtenerUnidad } from '../core/units.js'
 import { useApp } from '../state/AppState.jsx'
-import { trazadoDeRecinto } from '../state/useCalculo.js'
+import { moduloTrazaDe, trazadoDeRecinto } from '../state/useCalculo.js'
 import { Aviso, Cruz } from '../ui/index.js'
 import { AccionCerrar, LienzoControles } from './LienzoControles.jsx'
 
@@ -1026,8 +1026,8 @@ export function Lienzo({ className } = {}) {
   // y las pinta con las tintas del sistema. Un módulo sin `trazar` devuelve
   // una lista vacía y acá no cambia nada.
   //
-  // El interruptor NO entra en este memo: se sigue calculando el trazado con el
-  // despiece apagado, y a propósito. Es lo que permite que el título del
+  // Los interruptores NO entran en este memo: se sigue calculando el trazado
+  // con el despiece apagado, y a propósito. Es lo que permite que el título del
   // detente distinga "apagado" de "no hay nada que repartir", y encender vuelve
   // a mostrar la retícula sin recalcular hasta mil quinientas piezas justo en
   // el cuadro del clic. El costo es un memo que ya solo corre cuando cambia el
@@ -1036,7 +1036,51 @@ export function Lienzo({ className } = {}) {
     () => (cerrado ? trazadoDeRecinto(recinto, estado.biblioteca) : []),
     [cerrado, recinto, estado.biblioteca],
   )
-  const mostrarTrazado = dibujo.verDespiece && trazado.length > 0
+
+  // LOS EJES VAN PRIMERO Y LAS PIEZAS ENCIMA. No es una preferencia estética:
+  // el largo útil de una plancha suele ser múltiplo exacto de la separación
+  // entre ejes —2400 con 40 cm, 3000 con 60 cm—, así que TODA junta del lado
+  // largo cae justo sobre un eje. Con las capas al revés el ámbar del eje se
+  // pintaba encima y la plancha parecía dividida solo a lo ancho, sin ninguna
+  // línea de largo. Arriba queda la junta, que es por donde se corta.
+  const trazadoVisible = useMemo(
+    () =>
+      trazado
+        .filter((capa) => (capa.rol === 'eje' ? dibujo.verEjes : dibujo.verPiezas))
+        .sort((a, b) => Number(a.rol === 'pieza') - Number(b.rol === 'pieza')),
+    [trazado, dibujo.verPiezas, dibujo.verEjes],
+  )
+
+  // ¿El módulo de este recinto dibuja despiece? Se pregunta sin ejecutar
+  // `trazar`, así que la respuesta no depende de si el polígono está cerrado ni
+  // de si hay materiales elegidos. Un módulo que no dibuja no aporta ningún
+  // interruptor a la barra.
+  const moduloTraza = useMemo(() => moduloTrazaDe(recinto), [recinto])
+
+  // Una entrada por rol de dibujo. `hay` distingue "lo apagaste" de "todavía no
+  // hay nada que repartir", y el título del detente dice cuál de las dos es.
+  //
+  // Los interruptores existen ANTES de que haya algo que mostrar: si aparecieran
+  // recién al cerrar el polígono, la barra cambiaría de forma bajo el cursor y
+  // el usuario perdería una herramienta que ya había ubicado con la vista. El
+  // rótulo lo pone el módulo cuando ya trazó; mientras tanto va el genérico del
+  // vocabulario de dibujo.
+  const capasTrazado = useMemo(() => {
+    if (!moduloTraza) return []
+    const porRol = new Map(trazado.map((capa) => [capa.rol, capa]))
+    return [
+      { rol: 'pieza', respaldo: 'Piezas', activo: dibujo.verPiezas },
+      { rol: 'eje', respaldo: 'Ejes', activo: dibujo.verEjes },
+    ].map((entrada) => {
+      const capa = porRol.get(entrada.rol)
+      return {
+        rol: entrada.rol,
+        rotulo: capa ? capa.rotulo : entrada.respaldo,
+        activo: entrada.activo,
+        hay: Boolean(capa),
+      }
+    })
+  }, [moduloTraza, trazado, dibujo.verPiezas, dibujo.verEjes])
 
   /** @param {{x:number,y:number}} p @returns {{x:number,y:number}} */
   const aPantalla = useCallback(
@@ -1110,9 +1154,8 @@ export function Lienzo({ className } = {}) {
         onImanGrilla={acciones.alternarIman}
         ortogonal={dibujo.ortogonal}
         onOrtogonal={acciones.alternarOrtogonal}
-        verDespiece={dibujo.verDespiece}
-        onVerDespiece={acciones.alternarDespiece}
-        hayDespiece={trazado.length > 0}
+        capasTrazado={capasTrazado}
+        onCapaTrazado={acciones.alternarCapaTrazado}
         onAjustarVista={encuadrar}
         puedeDeshacer={puedeDeshacer}
         onDeshacer={acciones.deshacer}
@@ -1247,9 +1290,9 @@ export function Lienzo({ className } = {}) {
               cotas. Es información de segundo plano —ordena la lectura de la
               planta, no la define—, así que nunca puede taparle el contorno ni
               robarle un clic a un vértice. */}
-            {cerrado && mostrarTrazado ? (
+            {cerrado && trazadoVisible.length > 0 ? (
               <g clipPath={`url(#${idRecorte})`} pointerEvents="none" aria-hidden="true">
-                {trazado.map((capa) => {
+                {trazadoVisible.map((capa) => {
                   const tinta =
                     capa.rol === 'eje' ? 'var(--color-layout-eje)' : 'var(--color-layout-pieza)'
                   return (
@@ -1521,18 +1564,25 @@ export function Lienzo({ className } = {}) {
         {/* El despiece se declara acá y no como elemento navegable: son hasta mil
             quinientas figuras sin nombre propio, y tabular por ellas sería una
             trampa. Lo que importa es qué hay dibujado y que no cambia números. */}
-        {mostrarTrazado
-          ? ` Dentro de la planta se dibuja el reparto del módulo: ${trazado
+        {trazadoVisible.length > 0
+          ? ` Dentro de la planta se dibuja el reparto del módulo: ${trazadoVisible
               .map(
                 (capa) =>
                   `${capa.nombre || capa.clave}, ${
-                    capa.rol === 'eje' ? 'como ejes de perfil' : 'como retícula de piezas'
+                    capa.rol === 'eje' ? 'como ejes' : 'como retícula de piezas'
                   }`,
               )
-              .join('; ')}. Es una referencia de reparto para el trabajo en terreno: no altera ninguna cantidad de la cubicación, que se lee en la pestaña Resultados. Se apaga con el interruptor "Ver el despiece en la planta" de la barra de herramientas.`
-          : trazado.length > 0
-            ? ' El reparto de material del módulo está apagado. Se enciende con el interruptor "Ver el despiece en la planta" de la barra de herramientas.'
-            : ''}
+              .join('; ')}. Es una referencia de reparto para el trabajo en terreno: no altera ninguna cantidad de la cubicación, que se lee en la pestaña Resultados.`
+          : ''}
+        {/* Lo apagado se nombra una por una, porque el interruptor a buscar en
+            la barra lleva ese mismo rótulo. */}
+        {capasTrazado
+          .filter((capa) => capa.hay && !capa.activo)
+          .map(
+            (capa) =>
+              ` El dibujo de ${capa.rotulo.toLowerCase()} en la planta está apagado; se enciende con su interruptor en la barra de herramientas.`,
+          )
+          .join('')}
       </p>
     </div>
   )

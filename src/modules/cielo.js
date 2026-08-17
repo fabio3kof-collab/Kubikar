@@ -738,6 +738,7 @@ export function trazar(ctx) {
         capas.push({
           clave: 'cielo.plancha',
           nombre: plancha.nombre,
+          rotulo: 'Planchas',
           rol: 'pieza',
           rectangulos,
           lineas: [],
@@ -770,6 +771,7 @@ export function trazar(ctx) {
       capas.push({
         clave: 'cielo.perfil',
         nombre: perfil.nombre,
+        rotulo: 'Perfilería',
         rol: 'eje',
         rectangulos: [],
         lineas,

@@ -209,7 +209,9 @@ Paleta de tres neutros de papel, una tinta hierro en tres pesos y los tres color
 - **Grilla menor y mayor** (`grid-minor` / `grid-major`): retícula de referencia; línea mayor cada cinco pasos.
 - **Arista** (`edge`) y **cota** (`cota`): el trazo del polígono y su medida.
 - **Vértice** (`vertex`, azul marino) y **vértice activo** (`vertex-active`, ámbar #b56d00, 3,91:1 sobre el papel del lienzo): el vértice seleccionado, los cuatro ticks de registro, el cuadrado punteado del punto de cierre y los corchetes del segmento seleccionado. Es un ámbar más oscuro que el naranja de marca **a propósito**: son objetos gráficos esenciales y tienen que pasar 3:1.
-- **Despiece** (`layout-pieza` / `layout-eje`): el reparto de material que el módulo declara y el lienzo dibuja dentro del polígono, recortado contra la planta. Se separa de la grilla **por tono y no por peso**: la grilla es tierra, la pieza toma el azul marino de los vértices y el eje toma el ámbar de las guías. A igual grosor se distinguen de un vistazo, y con la grilla apagada por zoom la retícula del despiece sigue leyéndose sola. Va sobre el relleno y **bajo** las aristas, las cotas y los vértices: ordena la lectura de la planta, no la define, y nunca recibe un evento de puntero. Su interruptor vive en la barra del lienzo junto a "ajustar vista" y no junto al imán: imán y ortogonal cambian **cómo se dibuja**, este detente cambia **qué se ve**, y son dos gramáticas distintas.
+- **Despiece** (`layout-pieza` / `layout-eje`): el reparto de material que el módulo declara y el lienzo dibuja dentro del polígono, recortado contra la planta. Se separa de la grilla **por tono y no por peso**: la grilla es tierra, la pieza toma el azul marino de los vértices y el eje toma el ámbar de las guías. A igual grosor se distinguen de un vistazo, y con la grilla apagada por zoom la retícula del despiece sigue leyéndose sola. Va sobre el relleno y **bajo** las aristas, las cotas y los vértices: ordena la lectura de la planta, no la define, y nunca recibe un evento de puntero. **Dentro del despiece, las piezas van encima de los ejes**, porque las juntas del lado largo suelen caer exactamente sobre un eje y al revés quedaban tapadas.
+
+Sus interruptores —uno por rol— viven en la barra del lienzo junto a "ajustar vista" y no junto al imán: imán y ortogonal cambian **cómo se dibuja**, estos detentes cambian **qué se ve**, y son dos gramáticas distintas. El rótulo de cada uno lo pone el módulo ("Planchas", "Perfilería"): la barra conoce los dos roles del vocabulario de dibujo, nunca las partidas de construcción.
 
 ### Contraste medido
 
@@ -237,12 +239,12 @@ Ratios WCAG 2.2 reales de cada tinta del sistema, calculados con luminancia rela
 | `cota` | #4a5058 | 7,47 | 8,14 | 6,83 | 6,18 | 7,80 |
 | `grid-major` | #bcb8ae | 1,82 | 1,98 | 1,66 | 1,50 | 1,90 |
 | `grid-minor` | #dedbd4 | 1,27 | 1,38 | 1,16 | 1,05 | 1,33 |
-| `layout-pieza` | #b3b5d1 | 1,86 | 2,03 | 1,70 | 1,54 | **1,94** |
-| `layout-eje` | #a6763a | 3,66 | 4,00 | 3,35 | 3,03 | **3,84** |
+| `layout-pieza` | #8a8ebb | 2,89 | 3,15 | 2,64 | 2,39 | **3,02** |
+| `layout-eje` | #a6763a | 3,65 | 3,98 | 3,34 | 3,02 | **3,82** |
 
 Umbrales que rigen: **4,5:1** para texto normal (SC 1.4.3), **3:1** para el límite de un control y para un objeto gráfico esencial (SC 1.4.11). `rule` y las dos grillas quedan bajo 3:1 a propósito: son separación y referencia, no límite de control ni información esencial, y 1.4.11 no las alcanza. Un control deshabilitado también queda fuera del umbral por la misma norma.
 
-`layout-pieza` se queda en el mismo umbral de referencia que `grid-major`, y por la misma razón: la junta entre planchas ordena la lectura de la planta, no la define, y toda la información que transmite está además escrita en la pestaña Resultados. `layout-eje` sí pasa 3:1 porque es la línea que se replantea con huincha en terreno.
+Los dos tokens del despiece pasan 3:1 y ambos se miden contra `canvas-ground`, que es la única superficie donde caen. `layout-pieza` nació en 1,94:1, tratado como referencia igual que la grilla, y **no alcanzaba**: el largo útil de una plancha suele ser múltiplo exacto de la separación entre ejes —2400 con 40 cm, 3000 con 60 cm—, de modo que cada junta del lado largo cae justo encima de un eje de perfilería. A ese contraste la junta desaparecía bajo el ámbar y la retícula parecía dividida solo a lo ancho. Es la línea por donde se corta y por donde topan dos planchas: es objeto gráfico esencial y le corresponde el umbral.
 
 ### Named Rules
 

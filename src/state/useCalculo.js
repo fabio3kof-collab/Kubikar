@@ -241,15 +241,41 @@ function normalizarTrazado(bruto) {
     const rectangulos = Array.isArray(capa.rectangulos) ? capa.rectangulos : []
     const lineas = Array.isArray(capa.lineas) ? capa.lineas : []
     if (rectangulos.length === 0 && lineas.length === 0) continue
+    const rol = capa.rol === 'eje' ? 'eje' : 'pieza'
     salida.push({
       clave: capa.clave,
       nombre: typeof capa.nombre === 'string' ? capa.nombre : '',
-      rol: capa.rol === 'eje' ? 'eje' : 'pieza',
+      // El respaldo es genérico a propósito: si un módulo no rotula su rol, la
+      // barra igual tiene qué escribir en el interruptor y no queda un detente
+      // sin nombre. El vocabulario de dibujo es del núcleo, no del módulo.
+      rotulo:
+        typeof capa.rotulo === 'string' && capa.rotulo.trim() !== ''
+          ? capa.rotulo.trim()
+          : rol === 'eje'
+            ? 'Ejes'
+            : 'Piezas',
+      rol,
       rectangulos,
       lineas,
     })
   }
   return salida
+}
+
+/**
+ * ¿El módulo de este recinto dibuja despiece? Responde sin ejecutar `trazar`,
+ * y por eso responde `true` también con el polígono abierto o sin materiales
+ * elegidos: es la pregunta "¿esta herramienta aplica acá?", no "¿hay algo que
+ * mostrar ahora mismo?". La barra del lienzo necesita justo esa distinción para
+ * ofrecer los interruptores del despiece antes de que haya algo que mostrar.
+ *
+ * @param {Object|null|undefined} recinto
+ * @returns {boolean}
+ */
+export function moduloTrazaDe(recinto) {
+  const moduloId = recinto && typeof recinto.moduloId === 'string' ? recinto.moduloId : ''
+  const modulo = obtenerModulo(moduloId)
+  return Boolean(modulo && modulo.disponible && modulo.traza)
 }
 
 /**

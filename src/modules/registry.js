@@ -125,9 +125,18 @@
  *   · 'pieza'  contorno de una unidad de material (una plancha, una palmeta)
  *   · 'eje'    línea de un elemento lineal (un perfil, una vigueta)
  *
+ * El rol es además LA UNIDAD DE ENCENDIDO Y APAGADO: la barra del lienzo tiene
+ * un interruptor por rol, no uno por capa. Son dos slots fijos, porque son los
+ * dos que este vocabulario define, y eso mantiene la barra estable pase lo que
+ * pase con los módulos. Lo que cambia es el nombre del interruptor, y de eso se
+ * encarga `rotulo`: el módulo dice cómo se llama su rol en su propia partida
+ * ("Planchas", "Perfilería"), y el lienzo lo imprime sin entenderlo.
+ *
  * @typedef {Object} CapaTrazado
  * @property {string} clave    estable dentro del módulo, p.ej. 'cielo.plancha'
  * @property {string} nombre   nombre visible del material, para la descripción
+ * @property {string} [rotulo] nombre corto del rol en este módulo, para la
+ *                             barra de herramientas; cae al genérico si falta
  * @property {'pieza'|'eje'} rol
  * @property {{x:number,y:number,ancho:number,alto:number}[]} rectangulos
  * @property {{x1:number,y1:number,x2:number,y2:number}[]} lineas
@@ -142,6 +151,11 @@
  * @property {EsquemaParametro[]} esquema
  * @property {(ctx: ContextoCalculo) => ResultadoCalculo} calcular
  * @property {(ctx: ContextoCalculo) => CapaTrazado[]} trazar
+ * @property {boolean} traza   el módulo declaró `trazar` de verdad, en vez de
+ *                             recibir el respaldo vacío. La interfaz lo usa para
+ *                             no ofrecer los interruptores del despiece en un
+ *                             módulo que no dibuja nada, sin tener que
+ *                             distinguir "apagado" de "vacío" ejecutándolo.
  */
 
 /** Tipos de parámetro que la interfaz sabe dibujar. */
@@ -275,6 +289,7 @@ function normalizarModulo(modulo) {
     esquema,
     calcular: typeof calcular === 'function' ? calcular : resultadoNoCalculable,
     trazar: typeof trazar === 'function' ? trazar : sinTrazado,
+    traza: typeof trazar === 'function',
   }
   return normalizado
 }
