@@ -80,7 +80,7 @@ const EPS_LIMPIEZA_MM = 1
  * @property {'geometria'|'modulo'|'resultados'} pestana
  * @property {string} unidadActiva
  * @property {Object[]} biblioteca
- * @property {{modo:'dibujando'|'listo',imanGrilla:boolean,ortogonal:boolean,pasoGrillaMm:number,verticeSel:string|null,segmentoSel:number|null,vista:{x:number,y:number,zoom:number}}} dibujo
+ * @property {{modo:'dibujando'|'listo',imanGrilla:boolean,ortogonal:boolean,verDespiece:boolean,pasoGrillaMm:number,verticeSel:string|null,segmentoSel:number|null,vista:{x:number,y:number,zoom:number}}} dibujo
  * @property {{pasado:Array,futuro:Array}} historial
  * @property {{tipo:string,mensaje:string}|null} avisoAlmacenamiento
  * @property {boolean} guardando        hay una escritura agendada o en curso
@@ -102,6 +102,7 @@ const ESTADO_INICIAL = {
     modo: 'dibujando',
     imanGrilla: true,
     ortogonal: false,
+    verDespiece: true,
     pasoGrillaMm: 100,
     verticeSel: null,
     segmentoSel: null,
@@ -417,6 +418,10 @@ function reductor(estado, accion) {
           ...estado.dibujo,
           imanGrilla: preferencias.imanGrilla === true,
           ortogonal: preferencias.ortogonal === true,
+          // Encendido salvo que esté apagado explícitamente: es el único de los
+          // tres que arranca en true, y `=== true` lo apagaría al hidratar unas
+          // preferencias guardadas antes de que existiera.
+          verDespiece: preferencias.verDespiece !== false,
           pasoGrillaMm:
             Number.isFinite(preferencias.pasoGrilla) && preferencias.pasoGrilla > 0
               ? preferencias.pasoGrilla
@@ -711,6 +716,13 @@ function reductor(estado, accion) {
       return { ...estado, dibujo: { ...estado.dibujo, ortogonal } }
     }
 
+    case 'DESPIECE_ALTERNADO': {
+      const verDespiece =
+        typeof accion.valor === 'boolean' ? accion.valor : !estado.dibujo.verDespiece
+      if (verDespiece === estado.dibujo.verDespiece) return estado
+      return { ...estado, dibujo: { ...estado.dibujo, verDespiece } }
+    }
+
     case 'PASO_GRILLA_CAMBIADO': {
       const paso = Number(accion.pasoMm)
       if (!Number.isFinite(paso) || paso <= 0) return estado
@@ -903,6 +915,7 @@ export function ProveedorApp({ children }) {
               proyectoActivoId: null,
               imanGrilla: true,
               ortogonal: false,
+              verDespiece: true,
               pasoGrilla: ESTADO_INICIAL.dibujo.pasoGrillaMm,
             },
             proyecto: null,
@@ -966,7 +979,7 @@ export function ProveedorApp({ children }) {
 
   const unidadActiva = estado.unidadActiva
   const proyectoActivoId = estado.proyecto ? estado.proyecto.id : null
-  const { imanGrilla, ortogonal, pasoGrillaMm } = estado.dibujo
+  const { imanGrilla, ortogonal, verDespiece, pasoGrillaMm } = estado.dibujo
 
   useEffect(() => {
     if (estado.cargando) return undefined
@@ -986,6 +999,7 @@ export function ProveedorApp({ children }) {
           proyectoActivoId,
           imanGrilla,
           ortogonal,
+          verDespiece,
           pasoGrilla: pasoGrillaMm,
         })
         .catch(manejarFalla)
@@ -1003,6 +1017,7 @@ export function ProveedorApp({ children }) {
     proyectoActivoId,
     imanGrilla,
     ortogonal,
+    verDespiece,
     pasoGrillaMm,
     manejarFalla,
   ])
@@ -1282,6 +1297,10 @@ export function ProveedorApp({ children }) {
       dispatch({ tipo: 'ORTOGONAL_ALTERNADO', valor })
     }
 
+    function alternarDespiece(valor) {
+      dispatch({ tipo: 'DESPIECE_ALTERNADO', valor })
+    }
+
     function cambiarPasoGrilla(pasoMm) {
       dispatch({ tipo: 'PASO_GRILLA_CAMBIADO', pasoMm })
     }
@@ -1388,6 +1407,7 @@ export function ProveedorApp({ children }) {
       usosDeMaterial,
       alternarIman,
       alternarOrtogonal,
+      alternarDespiece,
       cambiarPasoGrilla,
       ajustarVista,
       descartarAviso,

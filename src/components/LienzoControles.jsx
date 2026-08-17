@@ -29,7 +29,16 @@
    ============================================================================ */
 
 import { useId } from 'react'
-import { CornerUpRight, Eraser, Magnet, Maximize, Pentagon, Redo2, Undo2 } from 'lucide-react'
+import {
+  CornerUpRight,
+  Eraser,
+  Grid2x2,
+  Magnet,
+  Maximize,
+  Pentagon,
+  Redo2,
+  Undo2,
+} from 'lucide-react'
 
 import { aMilimetros, aUnidad, obtenerUnidad } from '../core/units.js'
 import { Boton, CampoNumero, Detente, Regla, Rotulo } from '../ui/index.js'
@@ -48,6 +57,9 @@ function cx(...partes) {
  * @property {(valor:boolean) => void} onImanGrilla
  * @property {boolean}  ortogonal
  * @property {(valor:boolean) => void} onOrtogonal
+ * @property {boolean}  verDespiece
+ * @property {(valor:boolean) => void} onVerDespiece
+ * @property {boolean}  [hayDespiece]     el módulo del recinto tiene algo que dibujar
  * @property {() => void} onAjustarVista
  * @property {boolean}  puedeDeshacer
  * @property {() => void} onDeshacer
@@ -129,6 +141,9 @@ export function LienzoControles({
   onImanGrilla,
   ortogonal,
   onOrtogonal,
+  verDespiece,
+  onVerDespiece,
+  hayDespiece = false,
   onAjustarVista,
   puedeDeshacer,
   onDeshacer,
@@ -202,6 +217,24 @@ export function LienzoControles({
         onClick={onAjustarVista}
         etiquetaAccesible="Ajustar vista a la figura"
         title="Ajustar vista a la figura (tecla F)"
+      />
+      {/* Va con "ajustar vista" y no con imán y ortogonal: aquéllos cambian
+          CÓMO SE DIBUJA, éste cambia QUÉ SE VE. Nunca se deshabilita cuando no
+          hay nada que mostrar —parpadearía al cerrar y abrir el polígono, y un
+          detente apagado sin motivo visible es un misterio—: el motivo se dice
+          en el título y el interruptor sigue accionable. */}
+      <Detente
+        tamano="sm"
+        icono={Grid2x2}
+        activo={verDespiece}
+        deshabilitado={deshabilitado}
+        onClick={() => onVerDespiece(!verDespiece)}
+        etiquetaAccesible="Ver el despiece en la planta"
+        title={
+          hayDespiece
+            ? 'Ver el despiece: dibuja el reparto de material dentro de la planta'
+            : 'Ver el despiece. Este recinto todavía no tiene nada que repartir: cierra el polígono y elige los materiales del módulo.'
+        }
       />
 
       <Regla orientacion="vertical" className="mx-1" />

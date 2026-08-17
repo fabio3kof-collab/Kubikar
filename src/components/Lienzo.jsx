@@ -1025,10 +1025,18 @@ export function Lienzo({ className } = {}) {
   // recinto sus capas de despiece —geometría en milímetros y un rol de dibujo—
   // y las pinta con las tintas del sistema. Un módulo sin `trazar` devuelve
   // una lista vacía y acá no cambia nada.
+  //
+  // El interruptor NO entra en este memo: se sigue calculando el trazado con el
+  // despiece apagado, y a propósito. Es lo que permite que el título del
+  // detente distinga "apagado" de "no hay nada que repartir", y encender vuelve
+  // a mostrar la retícula sin recalcular hasta mil quinientas piezas justo en
+  // el cuadro del clic. El costo es un memo que ya solo corre cuando cambia el
+  // recinto o la biblioteca.
   const trazado = useMemo(
     () => (cerrado ? trazadoDeRecinto(recinto, estado.biblioteca) : []),
     [cerrado, recinto, estado.biblioteca],
   )
+  const mostrarTrazado = dibujo.verDespiece && trazado.length > 0
 
   /** @param {{x:number,y:number}} p @returns {{x:number,y:number}} */
   const aPantalla = useCallback(
@@ -1102,6 +1110,9 @@ export function Lienzo({ className } = {}) {
         onImanGrilla={acciones.alternarIman}
         ortogonal={dibujo.ortogonal}
         onOrtogonal={acciones.alternarOrtogonal}
+        verDespiece={dibujo.verDespiece}
+        onVerDespiece={acciones.alternarDespiece}
+        hayDespiece={trazado.length > 0}
         onAjustarVista={encuadrar}
         puedeDeshacer={puedeDeshacer}
         onDeshacer={acciones.deshacer}
@@ -1236,7 +1247,7 @@ export function Lienzo({ className } = {}) {
               cotas. Es información de segundo plano —ordena la lectura de la
               planta, no la define—, así que nunca puede taparle el contorno ni
               robarle un clic a un vértice. */}
-            {cerrado && trazado.length > 0 ? (
+            {cerrado && mostrarTrazado ? (
               <g clipPath={`url(#${idRecorte})`} pointerEvents="none" aria-hidden="true">
                 {trazado.map((capa) => {
                   const tinta =
@@ -1510,7 +1521,7 @@ export function Lienzo({ className } = {}) {
         {/* El despiece se declara acá y no como elemento navegable: son hasta mil
             quinientas figuras sin nombre propio, y tabular por ellas sería una
             trampa. Lo que importa es qué hay dibujado y que no cambia números. */}
-        {trazado.length > 0
+        {mostrarTrazado
           ? ` Dentro de la planta se dibuja el reparto del módulo: ${trazado
               .map(
                 (capa) =>
@@ -1518,8 +1529,10 @@ export function Lienzo({ className } = {}) {
                     capa.rol === 'eje' ? 'como ejes de perfil' : 'como retícula de piezas'
                   }`,
               )
-              .join('; ')}. Es una referencia de reparto para el trabajo en terreno: no altera ninguna cantidad de la cubicación, que se lee en la pestaña Resultados.`
-          : ''}
+              .join('; ')}. Es una referencia de reparto para el trabajo en terreno: no altera ninguna cantidad de la cubicación, que se lee en la pestaña Resultados. Se apaga con el interruptor "Ver el despiece en la planta" de la barra de herramientas.`
+          : trazado.length > 0
+            ? ' El reparto de material del módulo está apagado. Se enciende con el interruptor "Ver el despiece en la planta" de la barra de herramientas.'
+            : ''}
       </p>
     </div>
   )

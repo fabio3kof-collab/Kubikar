@@ -44,6 +44,7 @@ export { ErrorAlmacenamiento }
  * @property {string|null} proyectoActivoId
  * @property {boolean} imanGrilla
  * @property {boolean} ortogonal
+ * @property {boolean} verDespiece      dibujar el reparto del módulo en la planta
  * @property {number} pasoGrilla        paso de grilla en milímetros
  */
 
@@ -53,6 +54,7 @@ export const PREFERENCIAS_POR_DEFECTO = {
   proyectoActivoId: null,
   imanGrilla: true,
   ortogonal: false,
+  verDespiece: true,
   pasoGrilla: 100,
 }
 
@@ -426,6 +428,10 @@ export const repo = {
       proyectoActivoId: typeof crudo.proyectoActivoId === 'string' ? crudo.proyectoActivoId : null,
       imanGrilla: typeof crudo.imanGrilla === 'boolean' ? crudo.imanGrilla : true,
       ortogonal: typeof crudo.ortogonal === 'boolean' ? crudo.ortogonal : false,
+      // Ausente en lo ya guardado por una versión anterior: cae en encendido,
+      // que es el valor por defecto. Un `=== true` acá apagaría el despiece a
+      // todo el que ya tenía preferencias escritas.
+      verDespiece: typeof crudo.verDespiece === 'boolean' ? crudo.verDespiece : true,
       pasoGrilla: Number.isFinite(paso) && paso > 0 ? paso : PREFERENCIAS_POR_DEFECTO.pasoGrilla,
     }
   },
@@ -443,6 +449,7 @@ export const repo = {
       proyectoActivoId: mezcla.proyectoActivoId ?? null,
       imanGrilla: mezcla.imanGrilla === true,
       ortogonal: mezcla.ortogonal === true,
+      verDespiece: mezcla.verDespiece !== false,
       pasoGrilla:
         Number.isFinite(Number(mezcla.pasoGrilla)) && Number(mezcla.pasoGrilla) > 0
           ? Number(mezcla.pasoGrilla)
