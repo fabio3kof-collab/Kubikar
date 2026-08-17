@@ -1,0 +1,113 @@
+# Product
+
+<!-- impeccable:product-schema 1 -->
+
+## Platform
+
+web
+
+## Stack
+
+Definido por el usuario: React + Tailwind CSS, tokens de diseño como variables CSS consumidas desde la configuración de Tailwind, lienzo en SVG (no canvas), iconos con `lucide-react`, persistencia con localStorage del navegador encapsulada tras una única capa de acceso a datos asíncrona. Componentes propios; primitivas de terceros solo si son sin estilo y se alinean a los tokens. Sin backend, sin base de datos remota, sin autenticación, sin llamadas a APIs externas ni carga de recursos por red en tiempo de ejecución.
+
+## Users
+
+Usuarios primarios: constructores civiles, presupuestadores y jefes de obra chilenos.
+
+Situación de uso mixta: escritorio en oficina y notebook o tablet en faena. En faena hay luz de día fuerte, pantalla a brillo alto y a veces las manos ocupadas. El trabajo que hacen es cubicar: obtener, a partir de la planta de un recinto, la cantidad de material que hay que comprar para ejecutar una partida.
+
+Valoran la precisión numérica y la velocidad de ingreso por sobre la estética. Necesitan poder auditar el número: ver la cantidad teórica antes del redondeo y del desperdicio, no solo el resultado final.
+
+## Product Purpose
+
+Kubikar convierte una planta dibujada sobre una grilla en un listado de materiales cubicado. El usuario dibuja el polígono de un recinto uniendo puntos, ajusta la geometría con precisión numérica, elige un módulo de cálculo y obtiene la cantidad de material con su desperdicio aplicado.
+
+Un proyecto contiene uno o varios recintos. Cada recinto tiene su propio polígono, su propia configuración de cálculo y su propio resultado. El proyecto tiene además una vista de consolidado que suma los materiales de todos los recintos.
+
+Éxito: el usuario cubica un recinto completo más rápido que en una planilla, confía en el número porque puede auditarlo, y se lleva el resultado en CSV para Excel o en JSON para integrarlo después a la plataforma Karbec.
+
+## Positioning
+
+El mecanismo propio es el dibujo geométrico como entrada del cálculo, combinado con un núcleo modular de partidas. La geometría se dibuja una vez y sirve a cualquier módulo de cálculo: el mismo polígono alimenta hoy el módulo de cielo falso y mañana los de tabiquería, pisos, pintura y cerámicos, sin rehacer la planta.
+
+El segundo diferencial es la auditabilidad: cada línea de material muestra la cantidad teórica antes del redondeo y del desperdicio, y la nota de cálculo que la produjo. No es una caja negra que entrega un número.
+
+## Operating Context
+
+Flujo de trabajo confirmado:
+
+1. El usuario crea un proyecto y le da nombre.
+2. Agrega un recinto y lo nombra (por ejemplo "Living", "Dormitorio 1").
+3. Dibuja el polígono del recinto en el lienzo de grilla. Cada clic agrega un vértice y traza un segmento desde el vértice anterior, como una polilínea. El polígono se cierra al hacer clic sobre el primer vértice o con el botón "Cerrar polígono". Mientras la figura está abierta no se puede calcular.
+4. Ajusta la geometría con precisión: selecciona un vértice y edita sus coordenadas numéricamente, o selecciona un segmento y escribe su longitud exacta.
+5. Elige el módulo de cálculo y configura sus parámetros y los materiales que va a usar desde la biblioteca de materiales.
+6. Revisa el listado de materiales con cantidades y el consolidado del proyecto completo.
+7. Exporta el proyecto en JSON y el listado de materiales en CSV.
+
+Entorno: navegador de escritorio en oficina y notebook o tablet en faena. Sin conexión asegurada. El trabajo no se puede perder al recargar la página.
+
+Documentos y materiales reales del contexto: plantas de arquitectura, listados de materiales por partida, catálogos de planchas y perfilería del mercado chileno, planillas de presupuesto en Excel con configuración regional chilena (separador de columnas punto y coma, decimales con coma).
+
+## Capabilities and Constraints
+
+Alcance funcional confirmado:
+
+- Multi-proyecto con selector en la barra superior, nombre de proyecto editable, y vista de apertura para crear, abrir o importar un proyecto. Decisión del usuario, agosto 2026.
+- Sistema de unidades: selector de unidad activa entre milímetros, centímetros y metros. Toda la geometría se almacena internamente en una unidad base única, milímetros. Cambiar la unidad activa solo cambia cómo se muestran e ingresan los valores, en tiempo real, sin alterar ni escalar la figura. El área se muestra siempre en metros cuadrados y las longitudes lineales en metros lineales en la sección de resultados, independiente de la unidad activa de dibujo.
+- Biblioteca de materiales propia y compartida entre proyectos, con tipos Plancha, Barra o perfil, y Pieza o accesorio. Se precarga con materiales típicos del mercado chileno, editables.
+- Módulos de cálculo con contrato único y registro central. El núcleo renderiza el panel de parámetros automáticamente a partir del esquema declarado por el módulo, sin código específico por módulo en la interfaz.
+- Primer módulo activo: cielo falso de acero galvanizado, planchas más perfilería omega. Quedan registrados y visibles como deshabilitados, con el texto "próximamente": Tabiquería, Pisos, Pintura y Cerámicos.
+- Método de cálculo: versión rápida por área y longitud con porcentaje de desperdicio. Cada resultado muestra la cantidad teórica antes del redondeo y del desperdicio.
+- Deshacer y rehacer para las operaciones de dibujo, con atajos de teclado, y tecla Escape para cancelar el trazado en curso.
+- Exportación a CSV con separador punto y coma y decimales con coma, para abrir correctamente en Excel en configuración regional chilena.
+- Exportación a JSON del proyecto completo con esquema estable y versionado.
+
+Restricciones técnicas confirmadas:
+
+- Sin backend, sin base de datos remota, sin autenticación, sin llamadas a APIs externas ni carga de recursos por red en tiempo de ejecución.
+- Toda la persistencia es local en el navegador y sobrevive al recargar la página.
+- Toda la persistencia queda encapsulada tras una única capa de acceso a datos con métodos asíncronos, de modo que el almacenamiento local se pueda reemplazar más adelante por llamadas a la API de la plataforma Karbec cambiando solo esa capa, sin tocar la interfaz ni los módulos de cálculo. No se dispersan llamadas de almacenamiento por los componentes.
+- No se implementa optimización de cortes. La cantidad de material sigue saliendo del área y de la longitud, nunca de un despiece resuelto pieza por pieza.
+- El lienzo sí dibuja el reparto de planchas y de ejes de perfilería dentro del polígono, como referencia de replanteo para el trabajo en terreno. Decisión del usuario, agosto 2026. Es una retícula de lectura, no un despiece: no recorta piezas, no numera cortes y no altera ni una cantidad de la cubicación. El módulo la declara con `trazar(ctx)` y el lienzo la recorta contra la planta; la orientación la define el parámetro "Dirección del perfil", que tampoco cambia las cantidades porque el cálculo es por área.
+- No se agrega login, usuarios, roles ni sincronización en la nube.
+- No se usan librerías de CAD ni motores de geometría externos. El área se calcula con la fórmula del área de Gauss sobre la lista de vértices.
+
+Terminología obligatoria, español de Chile y vocabulario de construcción chilena: recinto, cubicación, plancha, perfil, tabica, desperdicio, partida, vano, faena, cota, traslapo, colgante, ángulo perimetral, autoperforante.
+
+Moneda: pesos chilenos sin decimales, separador de miles con punto. Decisión del usuario, agosto 2026. El precio unitario es opcional por material; cuando no existe, la columna de costo queda vacía y no se inventa ningún valor.
+
+## Brand Commitments
+
+Nombre del producto: Kubikar. Pertenece a Karbec.
+
+Identidad heredada de Karbec, vinculante: azul marino #1A237E como color institucional y estructural, naranja #F39200 para la acción primaria y el estado seleccionado o activo, verde #4CAF50 para confirmación y resultado válido.
+
+Voz de la interfaz: directa y técnica, en español de Chile, sin entusiasmo comercial y sin signos de exclamación.
+
+Personalidad declarada por el usuario en tres palabras: preciso, sobrio, de terreno.
+
+Modo de la superficie: operar. El diseño sirve a la tarea, no persuade ni vende.
+
+## Evidence on Hand
+
+No hay activos gráficos entregados: no hay logotipo, fotografías, capturas ni tipografía corporativa en el repositorio. La única identidad disponible son los tres colores de Karbec listados arriba.
+
+No hay clientes, testimonios, benchmarks, precios de venta ni datos de uso reales. Ningún trabajo futuro debe fabricarlos.
+
+Los materiales precargados en la biblioteca son ejemplos editables de referencia del mercado chileno, no un catálogo de precios oficial: plancha de yeso-cartón 1200 x 3000 mm, plancha de yeso-cartón 1200 x 2400 mm, volcanita RH 1200 x 2400 mm, perfil Omega 38 x 3000 mm de acero galvanizado, perfil Omega 38 x 6000 mm, ángulo perimetral 25 x 25 x 3000 mm, tornillo autoperforante punta broca, alambre galvanizado #14. Se cargan sin precio unitario.
+
+## Product Principles
+
+1. **El número es auditable.** Toda cantidad final va acompañada de su cantidad teórica y de la nota de cálculo que la produjo. Nunca se muestra un resultado que el usuario no pueda reconstruir a mano.
+2. **La geometría se dibuja una vez y sirve a todos los módulos.** El polígono es el dato durable; el módulo de cálculo es intercambiable sobre él.
+3. **Agregar un módulo de cálculo no toca el núcleo ni la interfaz.** El módulo declara su esquema de parámetros y el núcleo lo renderiza. Si un módulo nuevo obliga a escribir código de interfaz, el contrato falló.
+4. **No se inventan valores.** Sin precio unitario no hay costo. Sin polígono cerrado no hay cálculo. Un dato ausente se declara ausente, no se rellena con cero.
+5. **La persistencia es una sola puerta.** Hoy es localStorage, mañana es la API de Karbec, y el cambio ocurre en un solo archivo.
+
+## Accessibility & Inclusion
+
+Requisito confirmado: contraste mínimo AA en texto y en todos los estados de los controles.
+
+La grilla y las cotas del lienzo deben seguir siendo legibles con brillo alto de pantalla, porque el uso en faena ocurre con luz de día fuerte.
+
+Los objetivos táctiles de vértices y controles deben ser suficientemente grandes para uso en tablet, porque el mismo usuario opera la app con el dedo en obra y con mouse en oficina.

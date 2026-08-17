@@ -1,0 +1,230 @@
+/* =============================================================================
+   Kubikar · capa base
+   -----------------------------------------------------------------------------
+   Registros tipograficos y marcas impresas del mundo visual. Todo consume
+   tokens de tokens.css; aca no se define ni un color nuevo.
+   ============================================================================ */
+
+@import '@fontsource-variable/source-serif-4';
+@import '@fontsource-variable/source-serif-4/wght-italic.css';
+@import './tokens.css';
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-serif);
+    font-size: var(--text-base);
+    line-height: 1.45;
+    font-variant-numeric: lining-nums;
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior: none;
+  }
+
+  /* Nada flota por defecto: en esta edicion la jerarquia la hace el filete. */
+  * {
+    border-color: var(--color-rule);
+  }
+
+  /* El foco es una marca impresa, no un halo difuso. */
+  :focus-visible {
+    outline: var(--rule-weight-strong) solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  /* Las cifras son la carga util del producto: siempre tabulares. */
+  input[type='number'],
+  input[inputmode='decimal'],
+  td,
+  th {
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+
+  /* El navegador dibuja los steppers de number con su propia gramatica. */
+  input[type='number'] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+  input[type='number']::-webkit-outer-spin-button,
+  input[type='number']::-webkit-inner-spin-button {
+    appearance: none;
+    margin: 0;
+  }
+
+  ::selection {
+    background-color: var(--color-accent-veil);
+    color: var(--color-ink);
+  }
+
+  /* Reducir movimiento no es borrar el cambio de estado: es que el cambio no
+     viaje por desplazamiento. Se apaga la animacion y se acota la transicion a
+     las propiedades que solo comunican (color, filete, sombra, opacidad), de
+     modo que el detente siga marcando lo activo y el testigo de trabajo siga
+     diciendo que algo esta ocurriendo. Lo que se congela es el corrimiento. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-property: background-color, border-color, color, box-shadow, opacity !important;
+      scroll-behavior: auto !important;
+    }
+
+    .kb-detent,
+    [role='switch'] * {
+      transform: none !important;
+    }
+
+    /* El testigo de trabajo deja de girar y pasa a pulsar: sigue comunicando
+       que el boton esta ocupado, sin movimiento en pantalla. */
+    .kb-testigo {
+      animation: kb-latido 1s var(--ease-damped) infinite !important;
+    }
+  }
+
+  @keyframes kb-latido {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.4;
+    }
+  }
+}
+
+@layer components {
+  /* ---------------------------------------------------------------------------
+     Registros tipograficos
+     --------------------------------------------------------------------------- */
+
+  /* Rotulo de aparato: versal rastreada, el nombre impreso de cada cosa. */
+  .kb-label {
+    font-size: var(--text-xs);
+    line-height: 1.25;
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+    color: var(--color-ink-3);
+    font-weight: 600;
+  }
+
+  .kb-label-strong {
+    color: var(--color-navy-ink);
+  }
+
+  /* Rubrica: el rotulo de lo activo o seleccionado. */
+  .kb-label-rubric {
+    color: var(--color-accent-ink);
+  }
+
+  /* Columna numerica. Toda cifra del producto pasa por aca. */
+  .kb-num {
+    font-variant-numeric: tabular-nums lining-nums;
+    letter-spacing: var(--tracking-tight);
+  }
+
+  /* Brevier: la prosa de la edicion. Notas de calculo, estados vacios, avisos. */
+  .kb-prose {
+    font-size: var(--text-lg);
+    line-height: 1.5;
+    max-width: 66ch;
+    color: var(--color-ink-2);
+  }
+
+  /* ---------------------------------------------------------------------------
+     Marcas impresas
+     --------------------------------------------------------------------------- */
+
+  /* Cuatro ticks de registro en las esquinas, el modo en que esta edicion
+     marca lo enfocado y lo activo. Se dibuja con capas de fondo para no
+     ensuciar el DOM con spans. */
+  .kb-ticks {
+    --kb-tick: var(--color-accent);
+    --kb-tick-arm: 7px;
+    background-image: linear-gradient(var(--kb-tick) 0 0), linear-gradient(var(--kb-tick) 0 0),
+      linear-gradient(var(--kb-tick) 0 0), linear-gradient(var(--kb-tick) 0 0),
+      linear-gradient(var(--kb-tick) 0 0), linear-gradient(var(--kb-tick) 0 0),
+      linear-gradient(var(--kb-tick) 0 0), linear-gradient(var(--kb-tick) 0 0);
+    background-size:
+      var(--kb-tick-arm) var(--hairline),
+      var(--hairline) var(--kb-tick-arm),
+      var(--kb-tick-arm) var(--hairline),
+      var(--hairline) var(--kb-tick-arm),
+      var(--kb-tick-arm) var(--hairline),
+      var(--hairline) var(--kb-tick-arm),
+      var(--kb-tick-arm) var(--hairline),
+      var(--hairline) var(--kb-tick-arm);
+    background-position:
+      top left,
+      top left,
+      top right,
+      top right,
+      bottom left,
+      bottom left,
+      bottom right,
+      bottom right;
+    background-repeat: no-repeat;
+  }
+
+  .kb-ticks-navy {
+    --kb-tick: var(--color-navy);
+  }
+
+  /* Detente del riel: filete en reposo, macizo al presionar, tachado si esta
+     deshabilitado, encorchetado al foco. Es el vocabulario de estado completo
+     de esta edicion, y vive en un solo lugar. */
+  .kb-detent {
+    position: relative;
+    border: var(--hairline) solid var(--color-rule-strong);
+    background-color: var(--color-transparent);
+    color: var(--color-ink-2);
+    transition:
+      background-color var(--duration-fast) var(--ease-damped),
+      color var(--duration-fast) var(--ease-damped),
+      border-color var(--duration-fast) var(--ease-damped);
+  }
+
+  .kb-detent:hover:not(:disabled):not([aria-disabled='true']) {
+    background-color: var(--color-margin-deep);
+    color: var(--color-ink);
+  }
+
+  .kb-detent[data-state='on'],
+  .kb-detent[aria-selected='true'],
+  .kb-detent[aria-pressed='true'] {
+    background-color: var(--color-accent);
+    border-color: var(--color-accent-hover);
+    color: var(--color-accent-onfill);
+  }
+
+  .kb-detent:disabled,
+  .kb-detent[aria-disabled='true'] {
+    color: var(--color-ink-3);
+    border-color: var(--color-rule);
+    background-image: linear-gradient(
+      to bottom right,
+      transparent calc(50% - 0.5px),
+      var(--color-rule-strong) calc(50% - 0.5px),
+      var(--color-rule-strong) calc(50% + 0.5px),
+      transparent calc(50% + 0.5px)
+    );
+    cursor: not-allowed;
+  }
+
+  /* Barra de rubrica: la marca de seleccion de la clave numerada del margen. */
+  .kb-key-mark {
+    box-shadow: inset var(--rule-weight-strong) 0 0 0 var(--color-transparent);
+    transition: box-shadow var(--duration-fast) var(--ease-damped);
+  }
+
+  .kb-key-mark[data-current='true'] {
+    box-shadow: inset var(--rule-weight-strong) 0 0 0 var(--color-accent);
+    background-color: var(--color-block);
+  }
+}

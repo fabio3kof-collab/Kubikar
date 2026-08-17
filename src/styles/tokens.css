@@ -1,0 +1,196 @@
+/* =============================================================================
+   Kubikar · tokens de diseño
+   -----------------------------------------------------------------------------
+   Fuente unica de verdad visual. Todo token vive aca como variable CSS y se
+   expone a Tailwind por el bloque @theme, de modo que `bg-paper`, `text-ink` o
+   `border-rule` son las unicas formas legitimas de aplicar color.
+
+   REGLA DURA: ningun componente escribe un color, un radio, una sombra ni un
+   tamaño de texto en duro. Si falta un token, se agrega aca.
+
+   Mundo visual: edicion de referencia reglada (rw-centre-rail-reference-setting).
+   Papel neutro, tinta hierro, filete de 1px, sin radios. El azul marino Karbec
+   es la tinta estructural, el naranja Karbec es la rubrica que marca lo activo,
+   el verde Karbec confirma el resultado valido.
+
+   Los tres colores institucionales llegan en dos sabores porque un naranja o un
+   verde saturado sobre papel no alcanza contraste AA como texto:
+     --color-accent      relleno, marca, barra de seleccion  (no texto)
+     --color-accent-ink  texto e iconos sobre papel          (AA garantizado)
+
+   COMO SE MIDE EL CONTRASTE ACA: contra la superficie MAS OSCURA sobre la que
+   el token cae de verdad, no contra el papel. La aplicacion casi nunca pone
+   texto secundario sobre --color-paper: lo pone sobre --color-margin (paneles,
+   barra, aparato) y sobre --color-margin-deep (riel en reposo). Un token que
+   solo cumple AA contra papel es un token que no cumple.
+   ============================================================================ */
+
+@import 'tailwindcss';
+
+@theme {
+  /* ---------------------------------------------------------------------------
+     COLOR
+     Se limpia el espacio de nombres de color de Tailwind: solo existen los
+     tokens de Kubikar. Escribir `bg-slate-500` deja de compilar a algo, que es
+     exactamente la señal que queremos.
+     --------------------------------------------------------------------------- */
+  --color-*: initial;
+
+  --color-transparent: transparent;
+  --color-current: currentColor;
+  --color-inherit: inherit;
+
+  /* Neutros: papel, bloque de medida, margen de aparato, tinta */
+  --color-paper: #f6f5f2; /* fondo de la aplicacion */
+  --color-block: #ffffff; /* superficie del bloque de medida (lienzo, tablas) */
+  --color-margin: #edebe6; /* segundo neutro: paneles, barras, margen de aparato */
+  --color-margin-deep: #e3e0d9; /* margen en reposo sobre el que va un detente */
+
+  --color-ink: #14161a; /* tinta hierro · 16.9:1 sobre papel */
+  --color-ink-2: #4a5058; /* tinta secundaria · 7.8:1 */
+  --color-ink-3: #5c636c; /* tinta terciaria, minimo AA sobre margin-deep · 4.6:1 */
+  --color-ink-onfill: #ffffff; /* tinta sobre relleno oscuro */
+
+  --color-rule: #c9c7c0; /* filete decorativo de 1px */
+  --color-rule-strong: #7a776f; /* filete que delimita un control · 3.4:1 sobre margin-deep */
+
+  /* Institucional Karbec · azul marino */
+  --color-navy: #1a237e;
+  --color-navy-ink: #1a237e; /* 12.4:1 sobre papel */
+  --color-navy-hover: #141b63;
+  --color-navy-soft: #e6e7f0; /* relleno del poligono cerrado, cabeceras */
+  --color-navy-veil: color-mix(in srgb, #1a237e 10%, transparent);
+
+  /* Accion Karbec · naranja. Seleccionado, activo, accion primaria */
+  --color-accent: #f39200;
+  --color-accent-ink: #8f5300; /* 5.7:1 sobre papel */
+  --color-accent-hover: #d97f00;
+  --color-accent-onfill: #14161a; /* 7.8:1 sobre el relleno naranja */
+  --color-accent-soft: #fdefd9;
+  --color-accent-veil: color-mix(in srgb, #f39200 16%, transparent);
+
+  /* Confirmacion Karbec · verde. Resultado valido */
+  --color-ok: #4caf50;
+  --color-ok-ink: #26722b; /* 5.6:1 sobre papel */
+  --color-ok-soft: #e6f2e7;
+
+  /* Advertencia · conviven con la paleta institucional */
+  --color-warn: #c77700;
+  --color-warn-ink: #8a5200; /* 5.9:1 */
+  --color-warn-soft: #fbf0dd;
+
+  /* Error */
+  --color-error: #b3261e;
+  --color-error-ink: #8c1d18; /* 8.5:1 */
+  --color-error-soft: #fbe9e7;
+
+  /* Foco: bracket de registro, no halo */
+  --color-focus: #1a237e;
+
+  /* ---------------------------------------------------------------------------
+     TIPOGRAFIA
+     Una sola familia. Source Serif 4 es una transicional de trabajo diseñada
+     para pantalla, con cifras tabulares reales: sostiene titulo, rotulo, control
+     y columna numerica sin partir el mundo en dos.
+     --------------------------------------------------------------------------- */
+  --font-*: initial;
+  --font-serif: 'Source Serif 4 Variable', 'Source Serif 4', ui-serif, Georgia,
+    'Times New Roman', serif;
+  --font-sans: var(--font-serif); /* alias defensivo: font-sans no sale del mundo */
+  --font-mono: var(--font-serif);
+
+  /* Escala fija, razon ~1.18. Nada de tipografia fluida en una herramienta. */
+  --text-2xs: 0.625rem; /* 10px · cota minima del lienzo */
+  --text-2xs--line-height: 1.2;
+  --text-xs: 0.6875rem; /* 11px · rotulo de aparato, versal rastreada */
+  --text-xs--line-height: 1.25;
+  --text-sm: 0.8125rem; /* 13px · tabla densa, rotulo de control */
+  --text-sm--line-height: 1.35;
+  --text-base: 0.9375rem; /* 15px · interfaz por defecto */
+  --text-base--line-height: 1.45;
+  --text-lg: 1.0625rem; /* 17px · brevier, prosa de nota y estado vacio */
+  --text-lg--line-height: 1.5;
+  --text-xl: 1.25rem; /* 20px */
+  --text-xl--line-height: 1.3;
+  --text-2xl: 1.5rem; /* 24px */
+  --text-2xl--line-height: 1.2;
+  --text-3xl: 1.875rem; /* 30px · unico titulo grande */
+  --text-3xl--line-height: 1.15;
+
+  --tracking-label: 0.1em; /* versal rastreada del rotulo de aparato */
+  --tracking-tight: -0.012em;
+
+  /* ---------------------------------------------------------------------------
+     ESPACIO
+     Base de 4px. La rejilla de espaciado es la misma que ordena el reglado.
+     --------------------------------------------------------------------------- */
+  --spacing: 0.25rem;
+
+  /* Objetivo tactil minimo para faena. No bajar de aca en controles del lienzo. */
+  --size-touch: 2.75rem; /* 44px */
+  --size-touch-sm: 2.25rem; /* 36px · controles densos de escritorio */
+
+  /* Anchos estructurales de las tres zonas */
+  --size-rail: 2.5rem; /* riel central con detentes */
+  --size-margin-left: 15rem; /* clave numerada de recintos */
+  --size-margin-right: 24rem; /* margen de aparato */
+  /* Resultados es la unica pestaña que necesita bloque de medida MAS margen de
+     anotacion en la misma pista: la tabla de siete columnas a la izquierda y la
+     memoria de calculo encorchetada a la derecha. Se ensancha solo ahi, y con
+     clamp para que el lienzo nunca baje de lo usable en pantallas medianas. */
+  --size-margin-resultados: clamp(24rem, 42vw, 38rem);
+
+  /* ---------------------------------------------------------------------------
+     TRAZO Y FORMA
+     Sin radios en ninguna parte: se vacia el espacio de nombres para que
+     `rounded-*` no exista como utilidad.
+     --------------------------------------------------------------------------- */
+  --radius-*: initial;
+
+  --hairline: 1px;
+  --rule-weight: 1px;
+  --rule-weight-strong: 2px;
+
+  /* Sombras: solo para lo que flota fuera del flujo (dialogo, menu). Con
+     desplazamiento y difuminado reales; un halo sin offset es decoracion. */
+  --shadow-*: initial;
+  --shadow-lift: 0 6px 20px -6px color-mix(in srgb, #14161a 28%, transparent),
+    0 1px 0 0 var(--color-rule-strong);
+
+  /* ---------------------------------------------------------------------------
+     MOVIMIENTO
+     Un solo eje, amortiguado, sin rebote. 150-200ms.
+     --------------------------------------------------------------------------- */
+  --ease-damped: cubic-bezier(0.2, 0, 0, 1);
+  --duration-fast: 120ms;
+  --duration-base: 180ms;
+
+  /* ---------------------------------------------------------------------------
+     LIENZO
+     Tokens propios del motor de reglado y de la grilla de dibujo. Deben
+     mantenerse legibles con brillo alto de pantalla en faena.
+     --------------------------------------------------------------------------- */
+  --color-grid-minor: #dedbd4;
+  --color-grid-major: #bcb8ae;
+  --color-canvas-ground: #fbfaf8;
+  --color-vertex: #1a237e;
+  /* El vertice activo, los ticks de registro del lienzo y el cuadrado de cierre
+     son objetos graficos esenciales: identifican que vertice esta seleccionado
+     y donde cierra el poligono. Por eso el naranja de rubrica baja de tono acá
+     hasta pasar 3:1 contra el papel del lienzo · 3.9:1 sobre canvas-ground. */
+  --color-vertex-active: #b56d00;
+  --color-edge: #14161a;
+  --color-edge-guide: #8f5300;
+  --color-poly-fill: color-mix(in srgb, #1a237e 9%, transparent);
+  --color-cota: #4a5058;
+  /* Despiece dibujado dentro del poligono. Se separan de la grilla POR TONO y
+     no por peso: la grilla es tierra (#bcb8ae) y esto es material, asi que la
+     pieza toma el azul marino de los vertices y el eje toma el ambar de las
+     guias. A igual grosor se distinguen de un vistazo, y con la grilla apagada
+     por zoom la retícula del despiece sigue leyendose sola.
+     La junta de plancha es referencia, no objeto grafico esencial: 1,94:1 sobre
+     el papel del lienzo, mismo umbral que la grilla mayor. El eje de perfil si
+     llega a 3,84:1, porque es la linea que se replantea en terreno. */
+  --color-layout-pieza: #b3b5d1; /* 1,94:1 sobre canvas-ground */
+  --color-layout-eje: #a6763a; /* 3,84:1 sobre canvas-ground */
+}
