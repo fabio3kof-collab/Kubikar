@@ -214,31 +214,41 @@ separación en 0.
 
 ### 4.4 Memoria de cálculo
 
-La nota deja de ser una división y pasa a ser el conteo. Formatos:
+La nota deja de ser una división y pasa a ser el conteo.
 
-**Perfil, todas las corridas del mismo largo** —el caso de terreno, y por eso
-lleva la frase completa del descarte:
+> **Enmienda de implementación, 2026-08-18.** Se descartaron los dos formatos de
+> perfil que este documento proponía —uno para corridas iguales y otro para
+> corridas mixtas— y quedó **uno solo**, con el descarte declarado en metros
+> lineales. Dos formatos eran dos caminos de código que había que mantener de
+> acuerdo entre sí para decir lo mismo, y el agregado `descarte X,XX ml` deja el
+> retazo perdido igual de visible que la frase larga. Los ejemplos de abajo son
+> los que imprime el producto.
 
-> 12 corridas de 2,60 m · de cada barra de 3,00 m sale 1 pieza y sobran 0,40 m,
-> bajo el mínimo de 0,50 m → descarte · 12 barras · +5 % desperdicio = 12,60
-> → 13 un
+Formatos:
 
-**Perfil, corridas de largos distintos** —resumen por grupos de largo, los tres
-mayores por cantidad y el resto como «y N más»:
+**Perfil** —resumen por grupos de largo, los tres mayores y el resto como
+«y N largos más»:
 
-> 18 corridas (8 × 2,60 m + 6 × 1,80 m + 4 × 0,90 m) = 35,20 ml · barra de
-> 3,00 m, retazo mínimo 0,50 m → 14 barras · +5 % desperdicio = 14,70 → 15 un
+> 24 corridas (21 × 2,60 m + 3 × 1,30 m) = 58,50 ml · barra de 3,00 m, retazo
+> mínimo 0,50 m → 23 barras · descarte 10,50 ml · +5 % desperdicio = 24,15
+> → 25 un
+
+Ese es el proyecto San Vicente real, el que motivó el cambio: cubicaba 21 barras
+y en obra quedaba corto.
 
 **Perimetral:**
 
-> 6 lados (2 × 3,20 m + 2 × 2,60 m + 2 × 1,40 m) = 14,40 ml de perímetro ·
-> barra de 3,00 m, retazo mínimo 0,50 m → 6 barras · +5 % desperdicio = 6,30
-> → 7 un
+> 6 lados (1 × 9,50 m + 1 × 8,40 m + 1 × 2,60 m y 2 largos más) = 24,20 ml de
+> perímetro · barra de 3,00 m, retazo mínimo 0,50 m → 9 barras · descarte
+> 2,80 ml · +5 % desperdicio = 9,45 → 10 un
 
-**Plancha:**
+**Plancha** —cuando todas las posiciones tocan, el conteo se dice una sola vez:
 
-> retícula de 4 × 3 sobre la planta: 10 de 12 posiciones tocan el recinto
-> · +8 % desperdicio = 10,80 → 11 un
+> retícula de 3 × 4 sobre la planta: 12 posiciones · 10 parciales · +5 %
+> desperdicio = 12,60 → 13 un
+
+> retícula de 5 × 2 sobre la planta: 9 de 10 posiciones tocan el recinto ·
+> 4 parciales · +8 % desperdicio = 9,72 → 10 un
 
 El ejemplo del perimetral tiene dos lados de 3,20 m que no caben en una barra de
 3,00 m: cada uno se empalma. Cuando hay empalmes **y el traslapo del material es
