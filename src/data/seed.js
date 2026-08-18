@@ -51,6 +51,10 @@ export const DEFINICIONES_SEMILLA = [
     tipo: 'barra',
     nombre: 'Perfil Omega 38 × 3000 mm, acero galvanizado',
     largoBarraMm: 3000,
+    // El omega se empalma encajando un perfil dentro del otro: ese encaje
+    // consume 15 cm que no avanzan corrida.
+    traslapoMm: 150,
+    retazoMinimoMm: 500,
     designacion: 'Omega 38x0,85 mm',
     desperdicioPct: 5,
   },
@@ -58,6 +62,8 @@ export const DEFINICIONES_SEMILLA = [
     tipo: 'barra',
     nombre: 'Perfil Omega 38 × 6000 mm, acero galvanizado',
     largoBarraMm: 6000,
+    traslapoMm: 150,
+    retazoMinimoMm: 500,
     designacion: 'Omega 38x0,85 mm',
     desperdicioPct: 5,
   },
@@ -65,6 +71,10 @@ export const DEFINICIONES_SEMILLA = [
     tipo: 'barra',
     nombre: 'Ángulo perimetral 25 × 25 × 3000 mm',
     largoBarraMm: 3000,
+    // El ángulo se une a tope contra el muro siguiente: no hay encaje que
+    // descontar.
+    traslapoMm: 0,
+    retazoMinimoMm: 500,
     designacion: 'Ángulo 25x25x0,5 mm',
     desperdicioPct: 5,
   },

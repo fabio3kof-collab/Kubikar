@@ -46,6 +46,14 @@ export const TIPOS_MATERIAL = ['plancha', 'barra', 'pieza']
 export const CONSUMOS_PIEZA = ['por_m2', 'por_ml']
 
 /**
+ * Retazo mínimo aprovechable de una barra, en milímetros, cuando el material no
+ * lo declara. Medio metro es el corte bajo el cual un perfil deja de servir para
+ * otra corrida y se va al descarte; el usuario lo ajusta por material en la
+ * Biblioteca, y con 0 vuelve a aprovecharse cualquier sobrante.
+ */
+export const RETAZO_MINIMO_POR_DEFECTO_MM = 500
+
+/**
  * Módulo de cálculo asignado a un recinto nuevo.
  * La capa de datos no importa `src/modules/*` para no acoplarse al registro:
  * guarda el id como texto y el registro de módulos lo resuelve al calcular.
@@ -74,8 +82,11 @@ export const UNIDAD_POR_DEFECTO = 'cm'
  * @property {number|null} anchoMm        solo 'plancha'
  * @property {number|null} largoMm        solo 'plancha'
  * @property {number|null} espesorMm      solo 'plancha'
- * @property {number|null} traslapoMm     solo 'plancha' (0 si no hay traslapo)
+ * @property {number|null} traslapoMm     'plancha' (resta área útil) y 'barra'
+ *                                        (lo que consume cada empalme); 0 si va a tope
  * @property {number|null} largoBarraMm   solo 'barra'
+ * @property {number|null} retazoMinimoMm solo 'barra': bajo ese largo el sobrante
+ *                                        de una barra es descarte y no se reutiliza
  * @property {string|null} designacion    solo 'barra' (perfil comercial)
  * @property {'por_m2'|'por_ml'|null} consumo  solo 'pieza'
  * @property {number} desperdicioPct      0 en 'pieza'
@@ -309,10 +320,14 @@ export function nuevoMaterial(tipo = 'plancha') {
     anchoMm: t === 'plancha' ? 1200 : null,
     largoMm: t === 'plancha' ? 2400 : null,
     espesorMm: t === 'plancha' ? 15 : null,
-    traslapoMm: t === 'plancha' ? 0 : null,
+
+    // plancha y barra, con significados distintos: en la plancha el traslapo
+    // resta área útil, en la barra es lo que consume cada empalme.
+    traslapoMm: t === 'plancha' || t === 'barra' ? 0 : null,
 
     // barra
     largoBarraMm: t === 'barra' ? 3000 : null,
+    retazoMinimoMm: t === 'barra' ? RETAZO_MINIMO_POR_DEFECTO_MM : null,
     designacion: null,
 
     // pieza
@@ -358,9 +373,15 @@ export function normalizarMaterial(obj) {
     anchoMm: tipo === 'plancha' ? numeroO(fuente.anchoMm, null) : null,
     largoMm: tipo === 'plancha' ? numeroO(fuente.largoMm, null) : null,
     espesorMm: tipo === 'plancha' ? numeroO(fuente.espesorMm, null) : null,
-    traslapoMm: tipo === 'plancha' ? numeroO(fuente.traslapoMm, 0) : null,
+    traslapoMm: tipo === 'plancha' || tipo === 'barra' ? numeroO(fuente.traslapoMm, 0) : null,
 
     largoBarraMm: tipo === 'barra' ? numeroO(fuente.largoBarraMm, null) : null,
+    // Una barra guardada antes de que existiera este campo entra CON descarte, no
+    // sin él: su cifra sube apenas se abre el proyecto. Es deliberado —el número
+    // anterior estaba corto— y queda auditable porque la memoria de cálculo de
+    // cada línea imprime el umbral que usó.
+    retazoMinimoMm:
+      tipo === 'barra' ? numeroO(fuente.retazoMinimoMm, RETAZO_MINIMO_POR_DEFECTO_MM) : null,
     designacion:
       tipo === 'barra' && typeof fuente.designacion === 'string' && fuente.designacion.trim()
         ? fuente.designacion.trim()

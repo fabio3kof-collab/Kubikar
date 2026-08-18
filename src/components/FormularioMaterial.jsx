@@ -183,6 +183,9 @@ export function FormularioMaterial({
   const [espesor, setEspesor] = useState(() => desdeMm(inicial.espesorMm, unidadActiva))
   const [traslapo, setTraslapo] = useState(() => desdeMm(inicial.traslapoMm, unidadActiva))
   const [largoBarra, setLargoBarra] = useState(() => desdeMm(inicial.largoBarraMm, unidadActiva))
+  const [retazoMinimo, setRetazoMinimo] = useState(() =>
+    desdeMm(inicial.retazoMinimoMm, unidadActiva),
+  )
 
   const [errores, setErrores] = useState(/** @type {Record<string,string>} */ ({}))
   const [intentado, setIntentado] = useState(false)
@@ -202,6 +205,7 @@ export function FormularioMaterial({
     setEspesor(convertir)
     setTraslapo(convertir)
     setLargoBarra(convertir)
+    setRetazoMinimo(convertir)
   }, [u.id])
 
   /**
@@ -219,6 +223,7 @@ export function FormularioMaterial({
     setEspesor(desdeMm(base.espesorMm, u.id))
     setTraslapo(desdeMm(base.traslapoMm, u.id))
     setLargoBarra(desdeMm(base.largoBarraMm, u.id))
+    setRetazoMinimo(desdeMm(base.retazoMinimoMm, u.id))
     if (nuevoTipo === 'barra') setDesignacion(inicial.designacion || '')
     if (nuevoTipo === 'pieza') setConsumo(CONSUMOS_PIEZA.includes(consumo) ? consumo : 'por_m2')
     setErrores({})
@@ -264,6 +269,16 @@ export function FormularioMaterial({
       if (!esPositivo(largoBarra)) {
         fallas.largoBarra = `Ingresa el largo de la barra en ${u.nombre}. Tiene que ser mayor que 0.`
       }
+      if (traslapo !== null && traslapo < 0) {
+        fallas.traslapo = 'El traslapo no puede ser negativo. Deja 0 si las barras se unen a tope.'
+      } else if (esPositivo(largoBarra) && traslapo !== null && traslapo >= largoBarra) {
+        fallas.traslapo =
+          'El traslapo tiene que ser menor que el largo de la barra: con este valor un empalme no avanza corrida. Ingresa un traslapo menor.'
+      }
+      if (retazoMinimo !== null && retazoMinimo < 0) {
+        fallas.retazoMinimo =
+          'El retazo mínimo no puede ser negativo. Deja 0 si aprovechas cualquier sobrante.'
+      }
     }
 
     if (tipo === 'pieza') {
@@ -307,10 +322,18 @@ export function FormularioMaterial({
       anchoMm: tipo === 'plancha' ? aMm(cuantizar(ancho, dec), u.id) : null,
       largoMm: tipo === 'plancha' ? aMm(cuantizar(largo, dec), u.id) : null,
       espesorMm: tipo === 'plancha' ? aMm(cuantizar(espesor, dec), u.id) : null,
-      traslapoMm: tipo === 'plancha' ? (aMm(cuantizar(traslapo, dec), u.id) ?? 0) : null,
+
+      // El traslapo es el único campo que comparten dos tipos, con significados
+      // distintos: en la plancha resta área útil, en la barra es lo que consume
+      // cada empalme. Es el mismo campo del esquema y por eso el mismo estado.
+      traslapoMm:
+        tipo === 'plancha' || tipo === 'barra'
+          ? (aMm(cuantizar(traslapo, dec), u.id) ?? 0)
+          : null,
 
       // Barra o perfil.
       largoBarraMm: tipo === 'barra' ? aMm(cuantizar(largoBarra, dec), u.id) : null,
+      retazoMinimoMm: tipo === 'barra' ? (aMm(cuantizar(retazoMinimo, dec), u.id) ?? 0) : null,
       designacion: tipo === 'barra' && designacion.trim() ? designacion.trim() : null,
 
       // Pieza o accesorio.
@@ -482,6 +505,28 @@ export function FormularioMaterial({
               error={errores.designacion}
               placeholder="Omega 38x0,85 mm"
               ayuda="Opcional. El perfil comercial, tal como se pide en la ferretería."
+            />
+            <CampoNumero
+              etiqueta="Retazo mínimo"
+              valor={retazoMinimo}
+              onChange={alCambiar('retazoMinimo', setRetazoMinimo)}
+              sufijo={u.label}
+              decimales={u.decimales}
+              min={0}
+              paso={pasoMedida}
+              error={errores.retazoMinimo}
+              ayuda="Bajo este largo el sobrante de una barra es descarte y no se usa en otra corrida. Deja 0 si aprovechas cualquier retazo."
+            />
+            <CampoNumero
+              etiqueta="Traslapo de empalme"
+              valor={traslapo}
+              onChange={alCambiar('traslapo', setTraslapo)}
+              sufijo={u.label}
+              decimales={u.decimales}
+              min={0}
+              paso={pasoMedida}
+              error={errores.traslapo}
+              ayuda="Lo que consume cada empalme cuando la corrida es más larga que la barra. Deja 0 si las barras se unen a tope."
             />
           </div>
         </section>
