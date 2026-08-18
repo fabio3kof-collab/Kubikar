@@ -478,3 +478,173 @@ export function cercaDe(a, b, tolMm) {
   const tol = typeof tolMm === 'number' && Number.isFinite(tolMm) && tolMm > 0 ? tolMm : 0
   return distancia(a, b) <= tol
 }
+
+/* =============================================================================
+   Lectura de la planta para cubicar
+   -----------------------------------------------------------------------------
+   Estas tres funciones son las que permiten que la cantidad de material salga de
+   la planta y no de una división del área. Son geometría pura igual que el
+   resto del archivo: no saben qué es un perfil ni qué es una plancha.
+   ========================================================================== */
+
+/** Bajo este largo un tramo no es una corrida: es ruido de coma flotante. */
+const MIN_CORRIDA_MM = 1
+
+/**
+ * Recorta una recta contra el polígono y devuelve los tramos que quedan DENTRO.
+ *
+ * Barrido por paridad: se mira de qué lado de la recta cae cada extremo de cada
+ * arista, se anotan los cruces, se ordenan por su avance sobre la recta y se
+ * aparean. Un polígono cóncavo devuelve varios tramos en la misma recta, que es
+ * exactamente el caso que la división del área no sabe ver.
+ *
+ * La comparación de lado es SEMIABIERTA (`<= 0`), y de ahí sale una asimetría
+ * que conviene conocer antes de usar la función: un vértice apoyado justo sobre
+ * la recta se cuenta una sola vez y una arista colineal no aporta cruce, de modo
+ * que una recta que coincide con el borde de arranque del polígono devuelve la
+ * corrida completa y la que coincide con el borde opuesto no devuelve nada. No
+ * es un defecto sino la única forma de que un vértice no cuente dos veces; quien
+ * muestrea ejes sobre la planta desplaza el eje que cae sobre un muro.
+ *
+ * @param {Vertice[]} vertices
+ * @param {{x1:number,y1:number,x2:number,y2:number}} linea  dos puntos cualesquiera de la recta
+ * @returns {{x1:number,y1:number,x2:number,y2:number,largoMm:number}[]}
+ */
+export function recortarLineaEnPoligono(vertices, linea) {
+  const pts = lista(vertices)
+  if (pts.length < 3 || !linea || typeof linea !== 'object') return []
+
+  const px = num(linea.x1)
+  const py = num(linea.y1)
+  const dx = num(linea.x2) - px
+  const dy = num(linea.y2) - py
+  const largoDir = Math.hypot(dx, dy)
+  if (!(largoDir > EPS)) return []
+  const ux = dx / largoDir
+  const uy = dy / largoDir
+
+  /** Producto cruz de la dirección por el vector al punto: de qué lado cae. */
+  const lado = (p) => ux * (num(p.y) - py) - uy * (num(p.x) - px)
+
+  /** Avance de cada cruce sobre la recta, en mm desde el punto de referencia. */
+  const cortes = []
+  for (let i = 0; i < pts.length; i += 1) {
+    const a = pts[i]
+    const b = pts[(i + 1) % pts.length]
+    const sa = lado(a)
+    const sb = lado(b)
+    if ((sa <= 0) === (sb <= 0)) continue
+    // Los signos difieren, así que `sa - sb` nunca es cero: no hay división
+    // por cero posible acá.
+    const t = sa / (sa - sb)
+    const x = num(a.x) + t * (num(b.x) - num(a.x))
+    const y = num(a.y) + t * (num(b.y) - num(a.y))
+    cortes.push((x - px) * ux + (y - py) * uy)
+  }
+
+  if (cortes.length < 2) return []
+  cortes.sort((m, n) => m - n)
+
+  const tramos = []
+  for (let i = 0; i + 1 < cortes.length; i += 2) {
+    const desde = cortes[i]
+    const hasta = cortes[i + 1]
+    const largoMm = hasta - desde
+    if (!(largoMm >= MIN_CORRIDA_MM)) continue
+    tramos.push({
+      x1: px + ux * desde,
+      y1: py + uy * desde,
+      x2: px + ux * hasta,
+      y2: py + uy * hasta,
+      largoMm,
+    })
+  }
+  return tramos
+}
+
+/**
+ * ¿El punto cae dentro del polígono? Paridad de rayo hacia la derecha.
+ * @param {Vertice[]} vertices
+ * @param {{x:number,y:number}} punto
+ * @returns {boolean}
+ */
+export function contienePunto(vertices, punto) {
+  const pts = lista(vertices)
+  if (pts.length < 3 || !punto || typeof punto !== 'object') return false
+
+  const x = num(punto.x)
+  const y = num(punto.y)
+  let dentro = false
+
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i, i += 1) {
+    const xi = num(pts[i].x)
+    const yi = num(pts[i].y)
+    const xj = num(pts[j].x)
+    const yj = num(pts[j].y)
+    // Semiabierto por arriba, igual que el recorte: un vértice a la altura
+    // exacta del rayo pertenece a una sola de sus dos aristas.
+    if (yi > y === yj > y) continue
+    const corte = xi + ((y - yi) / (yj - yi)) * (xj - xi)
+    if (x < corte) dentro = !dentro
+  }
+
+  return dentro
+}
+
+/**
+ * ¿El rectángulo toca la planta? Se responde en tres modos, en orden de costo:
+ * una esquina del rectángulo dentro del polígono, un vértice del polígono dentro
+ * del rectángulo —el caso de un rectángulo que se lo traga entero— o el cruce de
+ * alguna arista con alguna. Antes de todo eso se descarta por rectángulo
+ * envolvente, que resuelve la enorme mayoría de las posiciones de una retícula.
+ *
+ * Un rectángulo degenerado (sin ancho o sin alto) no toca nada: no es una
+ * posición de material, es una línea.
+ *
+ * @param {Vertice[]} vertices
+ * @param {{x:number,y:number,ancho:number,alto:number}} rect
+ * @returns {boolean}
+ */
+export function rectanguloTocaPoligono(vertices, rect) {
+  const pts = lista(vertices)
+  if (pts.length < 3 || !rect || typeof rect !== 'object') return false
+
+  const x = num(rect.x)
+  const y = num(rect.y)
+  const ancho = num(rect.ancho)
+  const alto = num(rect.alto)
+  if (!(ancho > 0) || !(alto > 0)) return false
+
+  const x2 = x + ancho
+  const y2 = y + alto
+
+  const caja = boundingBox(pts)
+  if (x2 < caja.minX || x > caja.maxX || y2 < caja.minY || y > caja.maxY) return false
+
+  const esquinas = [
+    { x, y },
+    { x: x2, y },
+    { x: x2, y: y2 },
+    { x, y: y2 },
+  ]
+
+  for (let i = 0; i < esquinas.length; i += 1) {
+    if (contienePunto(pts, esquinas[i])) return true
+  }
+
+  for (let i = 0; i < pts.length; i += 1) {
+    const vx = num(pts[i].x)
+    const vy = num(pts[i].y)
+    if (vx >= x && vx <= x2 && vy >= y && vy <= y2) return true
+  }
+
+  for (let i = 0; i < pts.length; i += 1) {
+    const a = pts[i]
+    const b = pts[(i + 1) % pts.length]
+    for (let k = 0; k < 4; k += 1) {
+      if (seCruzan(a, b, esquinas[k], esquinas[(k + 1) % 4])) return true
+    }
+  }
+
+  return false
+}
