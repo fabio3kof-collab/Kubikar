@@ -648,3 +648,50 @@ export function rectanguloTocaPoligono(vertices, rect) {
 
   return false
 }
+
+/**
+ * ¿El rectángulo cabe ENTERO dentro del polígono? Es la pregunta complementaria
+ * de `rectanguloTocaPoligono` y sirve para separar una posición de material que
+ * se aprovecha completa de una que va a salir cortada.
+ *
+ * Se responde con las cuatro esquinas dentro y ninguna arista del polígono
+ * cruzando el rectángulo. Lo segundo no es redundante: un polígono cóncavo puede
+ * meter una muesca por el medio sin tocar ninguna esquina.
+ *
+ * @param {Vertice[]} vertices
+ * @param {{x:number,y:number,ancho:number,alto:number}} rect
+ * @returns {boolean}
+ */
+export function rectanguloDentroDePoligono(vertices, rect) {
+  const pts = lista(vertices)
+  if (pts.length < 3 || !rect || typeof rect !== 'object') return false
+
+  const x = num(rect.x)
+  const y = num(rect.y)
+  const ancho = num(rect.ancho)
+  const alto = num(rect.alto)
+  if (!(ancho > 0) || !(alto > 0)) return false
+
+  const x2 = x + ancho
+  const y2 = y + alto
+  const esquinas = [
+    { x, y },
+    { x: x2, y },
+    { x: x2, y: y2 },
+    { x, y: y2 },
+  ]
+
+  for (let i = 0; i < esquinas.length; i += 1) {
+    if (!contienePunto(pts, esquinas[i])) return false
+  }
+
+  for (let i = 0; i < pts.length; i += 1) {
+    const a = pts[i]
+    const b = pts[(i + 1) % pts.length]
+    for (let k = 0; k < 4; k += 1) {
+      if (seCruzan(a, b, esquinas[k], esquinas[(k + 1) % 4])) return false
+    }
+  }
+
+  return true
+}

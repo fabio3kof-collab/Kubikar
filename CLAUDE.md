@@ -17,6 +17,7 @@ El ciclo completo, sin saltarse pasos:
 
 ```sh
 npm run build          # tiene que pasar
+npm test               # tiene que salir en verde
 npm run design:check   # tiene que salir []  (arreglo vacío = sin infracciones)
 git add -A
 git commit -m "mensaje en español, en imperativo, explicando el porqué"
@@ -27,6 +28,9 @@ Reglas del respaldo:
 
 - **Nunca se commitea con el build roto.** El respaldo sirve para retomar en otra
   máquina; retomar sobre un árbol que no compila no es retomar.
+- **`npm test` es parte del ciclo.** Corre con `node --test`, sin dependencias.
+  Cubre el núcleo de cálculo —geometría, reparto de barras y el módulo Cielo—,
+  que es donde un error se paga con material comprado de menos.
 - **`design:check` es parte del ciclo,** no un extra. Es el guardián del sistema
   de diseño y debe devolver `[]`.
 - **Un commit por cambio con sentido propio.** Si una sesión toca dos cosas
