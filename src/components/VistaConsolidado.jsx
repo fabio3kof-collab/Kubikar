@@ -31,7 +31,7 @@
    ============================================================================ */
 
 import { Fragment, useMemo, useState } from 'react'
-import { ChevronDown, ChevronRight, Plus } from 'lucide-react'
+import { ChevronDown, ChevronRight, Plus, Printer } from 'lucide-react'
 
 import { formatearCLP, formatearCantidad } from '../core/units.js'
 import { useApp } from '../state/AppState.jsx'
@@ -76,7 +76,7 @@ const MOTIVOS = {
  * @param {{recintoId:string,nombre:string,razon:string}[]} omitidos
  * @returns {string[]}
  */
-function frasesDeOmision(omitidos) {
+export function frasesDeOmision(omitidos) {
   /** @type {Map<string,string[]>} conserva el orden de aparición */
   const porRazon = new Map()
   for (const omitido of omitidos) {
@@ -115,7 +115,7 @@ function idHtml(id) {
  * @param {number} cantidad
  * @returns {string}
  */
-function cantidadLegible(cantidad) {
+export function cantidadLegible(cantidad) {
   return formatearCantidad(cantidad, Number.isInteger(cantidad) ? 0 : 2)
 }
 
@@ -127,7 +127,7 @@ function cantidadLegible(cantidad) {
  * @param {Object} grupo
  * @returns {string}
  */
-function composicionDeGrupo(grupo) {
+export function composicionDeGrupo(grupo) {
   const aportes = grupo.detalle
     .map((aporte) => `${aporte.recintoNombre} ${cantidadLegible(aporte.cantidadFinal)}`)
     .join(' + ')
@@ -188,13 +188,21 @@ export function VistaConsolidado() {
 
   return (
     <section className="mx-auto flex w-full max-w-[64rem] flex-col gap-4 px-4 py-6">
-      <header className="flex flex-col gap-1">
-        <h2 className="text-2xl text-ink">Consolidado de materiales</h2>
-        <p className="text-base text-ink-2">
-          {estado.proyecto.nombre} · <span className="kb-num">{incluidos}</span> de{' '}
-          <span className="kb-num">{totalRecintos}</span>{' '}
-          {totalRecintos === 1 ? 'recinto cubicado' : 'recintos cubicados'}
-        </p>
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-2xl text-ink">Consolidado de materiales</h2>
+          <p className="text-base text-ink-2">
+            {estado.proyecto.nombre} · <span className="kb-num">{incluidos}</span> de{' '}
+            <span className="kb-num">{totalRecintos}</span>{' '}
+            {totalRecintos === 1 ? 'recinto cubicado' : 'recintos cubicados'}
+          </p>
+        </div>
+        {/* La lista de compra se lleva en papel: al proveedor, a la faena o al
+            archivador del presupuesto. El botón imprime la hoja dedicada de
+            `HojaImpresion`, no esta pantalla. */}
+        <Boton icono={Printer} onClick={() => window.print()}>
+          Imprimir
+        </Boton>
       </header>
 
       {/* La declaración de lo que quedó fuera va ARRIBA de la tabla: se lee antes

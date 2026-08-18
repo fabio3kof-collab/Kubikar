@@ -8,6 +8,7 @@
 @import '@fontsource-variable/source-serif-4';
 @import '@fontsource-variable/source-serif-4/wght-italic.css';
 @import './tokens.css';
+@import './impresion.css';
 
 @layer base {
   html {

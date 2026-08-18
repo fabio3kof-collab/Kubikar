@@ -77,6 +77,7 @@ import { PanelDerecho } from './components/PanelDerecho.jsx'
 import { PanelRecintos } from './components/PanelRecintos.jsx'
 import { SelectorProyecto } from './components/SelectorProyecto.jsx'
 import { VistaConsolidado } from './components/VistaConsolidado.jsx'
+import { HojaImpresion } from './components/HojaImpresion.jsx'
 import { EstadoVacio } from './ui/EstadoVacio.jsx'
 import { Boton } from './ui/Boton.jsx'
 import { Rotulo } from './ui/Rotulo.jsx'
@@ -347,13 +348,19 @@ export function App() {
   }
 
   return (
-    // La altura la fija el shell, no el documento: el lienzo se mide contra su
-    // pista y ninguna zona puede empujar el largo de la página.
-    <div className="flex h-[100dvh] w-full flex-col overflow-hidden bg-paper text-ink">
-      <BarraSuperior />
-      <AvisoAlmacenamiento />
-      <main className="flex min-h-0 flex-1 flex-col overflow-hidden">{cuerpo()}</main>
-    </div>
+    // Dos árboles hermanos: la aplicación de pantalla y el documento de papel.
+    // `impresion.css` apaga uno y enciende el otro según el medio. La razón de
+    // que el papel no sea la misma pantalla restilada está escrita ahí.
+    <>
+      {/* La altura la fija el shell, no el documento: el lienzo se mide contra
+          su pista y ninguna zona puede empujar el largo de la página. */}
+      <div className="kb-app flex h-[100dvh] w-full flex-col overflow-hidden bg-paper text-ink">
+        <BarraSuperior />
+        <AvisoAlmacenamiento />
+        <main className="flex min-h-0 flex-1 flex-col overflow-hidden">{cuerpo()}</main>
+      </div>
+      <HojaImpresion />
+    </>
   )
 }
 

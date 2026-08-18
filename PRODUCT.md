@@ -61,6 +61,7 @@ Alcance funcional confirmado:
 - Deshacer y rehacer para las operaciones de dibujo, con atajos de teclado, y tecla Escape para cancelar el trazado en curso.
 - Exportación a CSV con separador punto y coma y decimales con coma, para abrir correctamente en Excel en configuración regional chilena.
 - Exportación a JSON del proyecto completo con esquema estable y versionado.
+- Impresión en papel de dos documentos, con botón propio en cada vista: el consolidado como lista de compra —lo que quedó fuera, la tabla con su total y la composición por recinto—, y el recinto como lámina de terreno —la planta con su despiece y sus cotas, el listado de materiales y la memoria de cálculo de cada línea—. Decisión del usuario, agosto 2026.
 
 Restricciones técnicas confirmadas:
 

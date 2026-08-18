@@ -250,7 +250,7 @@ export function RulingLayer({
       width={mapa.ancho}
       height={mapa.alto}
       viewBox={`0 0 ${mapa.ancho} ${mapa.alto}`}
-      className={cx('pointer-events-none absolute top-0 left-0 overflow-visible', className)}
+      className={cx('kb-ruling pointer-events-none absolute top-0 left-0 overflow-visible', className)}
     >
       {mapa.trazos.map((trazo) => {
         const rubrica = trazo.id === destacada

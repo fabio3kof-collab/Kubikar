@@ -35,7 +35,7 @@
    ============================================================================ */
 
 import { Fragment, useMemo } from 'react'
-import { Library } from 'lucide-react'
+import { Library, Printer } from 'lucide-react'
 
 import { useApp } from '../state/AppState.jsx'
 import { useCalculo } from '../state/useCalculo.js'
@@ -146,6 +146,17 @@ export function PestanaResultados() {
 
   return (
     <div className="flex w-full max-w-[72rem] flex-col gap-6">
+      {/* El recinto también se imprime: la planta con su despiece más el
+          listado y la memoria de cálculo es la lámina que se lleva a terreno.
+          Solo tiene sentido cuando hay algo que cubicar. */}
+      {resultado.calculable ? (
+        <div className="flex justify-end">
+          <Boton tamano="sm" icono={Printer} onClick={() => window.print()}>
+            Imprimir recinto
+          </Boton>
+        </div>
+      ) : null}
+
       {avisosVisibles.map((aviso, indice) => (
         <Aviso key={`${aviso.nivel}-${indice}`} nivel={aviso.nivel}>
           {aviso.mensaje}

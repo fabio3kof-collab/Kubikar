@@ -1,0 +1,72 @@
+/* =============================================================================
+   Kubikar · capa de impresion
+   -----------------------------------------------------------------------------
+   La hoja de papel es un DOCUMENTO APARTE, no la pantalla restilada. La rejilla
+   de la aplicacion apoya su alto en contenedores con overflow-y-auto, y en papel
+   esos contenedores recortan el documento a una sola pagina: desarmarlos a la
+   fuerza con !important da un resultado distinto en cada navegador. Se monta un
+   arbol propio, invisible en pantalla, que en impresion reemplaza a la aplicacion
+   entera.
+
+   Todo consume tokens de tokens.css; aca no se define ni un color nuevo.
+   ============================================================================ */
+
+@page {
+  size: A4 portrait;
+  margin: 14mm;
+}
+
+/* La hoja no existe en pantalla. */
+.kb-hoja {
+  display: none;
+}
+
+@media print {
+  html,
+  body {
+    /* El papel es blanco, no el papel neutro de la aplicacion: la tinta de una
+       impresora ya trae su propio soporte y teñirlo gasta toner sin aportar. */
+    background-color: var(--color-block);
+    height: auto;
+    overflow: visible;
+  }
+
+  .kb-app {
+    display: none;
+  }
+
+  .kb-hoja {
+    display: block;
+    color: var(--color-ink);
+  }
+
+  /* El motor de reglado mide cajas de pantalla con getBoundingClientRect. En
+     papel la caja es otra y el corchete quedaria trazado sobre el vacio: se
+     apaga entero. Es tinta decorativa y aria-hidden, asi que no se pierde dato. */
+  .kb-ruling {
+    display: none;
+  }
+
+  /* Una tabla que cruza de pagina repite su cabecera: sin eso la segunda hoja
+     es una columna de cifras sin nombre. */
+  .kb-hoja thead {
+    display: table-header-group;
+  }
+
+  /* Una fila no se parte de su memoria de calculo, y un titulo no se queda solo
+     al pie de una pagina. */
+  .kb-hoja tr,
+  .kb-hoja .kb-hoja-bloque {
+    break-inside: avoid;
+  }
+
+  .kb-hoja h1,
+  .kb-hoja h2,
+  .kb-hoja h3 {
+    break-after: avoid;
+  }
+
+  .kb-hoja-salto {
+    break-before: page;
+  }
+}

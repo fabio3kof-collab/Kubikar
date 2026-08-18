@@ -445,6 +445,18 @@ Un único `<svg>` con transformación de vista `translate(...) scale(...)`. No s
 
 120–180ms, `--ease-damped` (`cubic-bezier(0.2, 0, 0, 1)`), un solo eje, sin rebote. **Solo comunica estado**: color de fondo, de filete, de tinta y la sombra interior de la barra de rúbrica. Con `prefers-reduced-motion: reduce` no se apaga la retroalimentación, se apaga el **desplazamiento**: la transición se acota a `background-color, border-color, color, box-shadow, opacity`, el corrimiento del interruptor se congela con `transform: none` y el testigo de trabajo deja de girar y pasa a pulsar en opacidad, para que siga diciendo que algo está ocurriendo.
 
+## Impresión
+
+El papel es un **documento aparte**, no la pantalla restilada. La rejilla de la aplicación apoya su alto en contenedores con desplazamiento propio, y en papel esos contenedores recortan el documento a una sola página; desarmarlos a la fuerza con `!important` da un resultado distinto en cada navegador. `src/components/HojaImpresion.jsx` monta un árbol hermano de la aplicación, invisible en pantalla, y `src/styles/impresion.css` apaga uno y enciende el otro según el medio.
+
+- **A4 vertical, márgenes de 14 mm.** El papel es `block` (blanco), no el papel neutro de la aplicación: la impresora ya trae su soporte y teñirlo gasta tóner sin aportar.
+- **Cabecera fija:** «Kubikar · Karbec» en rótulo, la fecha de impresión a la derecha, el título del documento en 20px y el proyecto debajo. Es lo que permite reconocer una lámina suelta sobre el capot.
+- **Dos hojas.** El **Consolidado** es la lista de compra: lo que quedó fuera arriba, la tabla con su total, y la composición por recinto. El **Recinto** es la lámina de terreno: la planta con su despiece y sus cotas, el listado y la memoria de cálculo de cada línea.
+- **La anotación baja al flujo.** En papel no hay margen de aparato medido, así que la memoria de cálculo y la composición van bajo su fila, no al costado. `RulingLayer` se apaga con `.kb-ruling`: mide cajas de pantalla con `getBoundingClientRect` y en papel esa medida ya no vale. Es tinta decorativa y `aria-hidden`, así que apagarla no quita dato.
+- **Cortes de página:** la cabecera de tabla se repite con `display: table-header-group`, una fila no se separa de su nota (`break-inside: avoid`) y un título no se queda solo al pie (`break-after: avoid`).
+- **La planta impresa es un dibujo estático** (`PlantaImpresa.jsx`) con el `viewBox` calzado al recinto y trazo `non-scaling-stroke`. No comparte código con `Lienzo.jsx`: el lienzo es una máquina de estados con vista, zoom, arrastre, foco, teclado e imán, y ninguna de esas cosas existe en una hoja de papel.
+- **Sin controles.** Ningún botón, ningún desplegable, ninguna fila elegible: lo que en pantalla se abre, en papel ya está abierto.
+
 ## Do's and Don'ts
 
 ### Do:
