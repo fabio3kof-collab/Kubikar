@@ -23,12 +23,13 @@
    ============================================================================ */
 
 import { useRef, useState } from 'react'
-import { Pencil, Plus, Sigma, Trash2 } from 'lucide-react'
+import { Pencil, Plus, Trash2 } from 'lucide-react'
 
 import { areaMm2 as areaDeVertices } from '../core/geometry.js'
 import { formatearArea } from '../core/units.js'
 import { useApp } from '../state/AppState.jsx'
-import { Boton, CampoTexto, Dialogo, EstadoVacio, Rotulo } from '../ui/index.js'
+import { useConsolidado } from '../state/useConsolidado.js'
+import { Boton, CampoTexto, Cruz, Dialogo, EstadoVacio, Rotulo } from '../ui/index.js'
 
 /**
  * @param {...(string|false|null|undefined)} partes
@@ -219,12 +220,16 @@ function EntradaRecinto({ recinto, indice, activo, onSeleccionar, onRenombrar, o
 export function PanelRecintos() {
   const { estado, acciones } = useApp()
   const [porEliminar, setPorEliminar] = useState(/** @type {Object|null} */ (null))
+  // La cifra de cierre sale del mismo consolidado que imprime la vista: no hay
+  // dos cuentas de cuántos recintos entraron.
+  const consolidado = useConsolidado(estado.proyecto, estado.biblioteca)
 
   const proyecto = estado.proyecto
   if (!proyecto) return null
 
   const recintos = Array.isArray(proyecto.recintos) ? proyecto.recintos : []
   const enConsolidado = estado.vista === 'consolidado'
+  const fuera = consolidado.omitidos.length
 
   function agregar() {
     acciones.agregarRecinto()
@@ -279,23 +284,53 @@ export function PanelRecintos() {
           Agregar recinto
         </Boton>
 
-        {/* El consolidado es una entrada más de la clave: se marca igual que un
-            recinto cuando está activo. */}
-        <button
-          type="button"
-          data-current={enConsolidado ? 'true' : 'false'}
-          aria-current={enConsolidado ? 'true' : undefined}
-          onClick={() => acciones.cambiarVista('consolidado')}
-          className={cx(
-            'kb-key-mark flex min-h-[var(--size-touch-sm)] items-center gap-2 px-3 py-2 text-left',
-            'transition-[background-color] duration-[var(--duration-fast)] ease-damped',
-            'hover:bg-margin-deep pointer-coarse:min-h-[var(--size-touch)]',
-          )}
-        >
-          <Sigma size={16} strokeWidth={1.5} aria-hidden="true" className="shrink-0 text-ink-2" />
-          <span className={cx('kb-label', enConsolidado && 'kb-label-rubric')}>Consolidado</span>
-        </button>
       </div>
+
+      {/* Bloque de cierre de la clave. Es una de las funciones principales del
+          producto y hasta acá pesaba menos que cualquier fila de recinto: un
+          rótulo de 11px en tinta terciaria, sin filete. Gana peso como lo gana
+          todo en esta edición —filete de corte, registro de lectura y cifra de
+          cierre—, no con relleno naranja ni con elevación. El naranja se queda
+          donde estaba: en "Agregar recinto", que es la acción de edición de esta
+          columna. */}
+      <button
+        type="button"
+        data-current={enConsolidado ? 'true' : 'false'}
+        aria-current={enConsolidado ? 'true' : undefined}
+        onClick={() => acciones.cambiarVista('consolidado')}
+        title={
+          fuera > 0
+            ? `${fuera} ${fuera === 1 ? 'recinto queda' : 'recintos quedan'} fuera del consolidado`
+            : undefined
+        }
+        className={cx(
+          'kb-key-mark relative flex shrink-0 items-center gap-3 border-t border-rule-strong px-3 py-3 text-left',
+          'transition-[background-color] duration-[var(--duration-fast)] ease-damped',
+          'hover:bg-margin-deep',
+        )}
+      >
+        <Cruz size={16} aria-hidden="true" className="shrink-0 text-navy-ink" />
+        <span className="min-w-0 flex-1 truncate text-base text-ink">Consolidado</span>
+        <span className="kb-num shrink-0 text-lg text-ink">
+          {consolidado.incluidos}
+          <span className="text-ink-3">/{consolidado.totalRecintos}</span>
+        </span>
+        <span className="sr-only">
+          {`${consolidado.incluidos} de ${consolidado.totalRecintos} recintos cubicados`}
+          {fuera > 0
+            ? `. ${fuera} ${fuera === 1 ? 'queda fuera' : 'quedan fuera'} del consolidado.`
+            : ''}
+        </span>
+
+        {/* Misma escuadra de registro con que el detente de Resultados declara
+            que trae problemas. Lo que dice va además en el nombre accesible. */}
+        {fuera > 0 ? (
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute top-0.5 right-0.5 block h-2 w-2 border-t border-r border-error-ink"
+          />
+        ) : null}
+      </button>
 
       <Dialogo
         abierto={porEliminar !== null}
