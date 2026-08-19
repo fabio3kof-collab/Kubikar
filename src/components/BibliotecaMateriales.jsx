@@ -9,7 +9,7 @@
 
    1. AGRUPADA POR TIPO, y filtrable por tipo desde la misma fila de detentes.
       Una plancha se describe por ancho y largo, una barra por su largo comercial
-      y una pieza por su modo de consumo: meterlas en una sola tabla obligaría a
+      y una pieza por para qué sirve: meterlas en una sola tabla obligaría a
       dejar dos tercios de las celdas vacías. Cada tipo trae sus columnas.
 
    2. LAS MEDIDAS SE MUESTRAN EN LA UNIDAD ACTIVA, y la cabecera de cada columna
@@ -65,6 +65,19 @@ const TIPOS = [
   { id: 'barra', grupo: 'Barras y perfiles', filtro: 'Barras' },
   { id: 'pieza', grupo: 'Piezas y accesorios', filtro: 'Piezas' },
 ]
+
+/**
+ * El uso de una pieza, escrito como se habla. Una pieza sin uso declarado —o
+ * guardada antes de que el campo existiera— se lee como comodín, que es
+ * exactamente lo que es: se ofrece en todos los parámetros.
+ * @type {Record<string,string>}
+ */
+const USOS_LEGIBLES = {
+  fijacion_plancha: 'Fijación a plancha',
+  fijacion_metal: 'Fijación metal-metal',
+  colgante: 'Colgante',
+  general: 'Sin uso específico',
+}
 
 /** Id del formulario del diálogo: enlaza el botón del pie con el <form>. */
 const ID_FORMULARIO = 'kb-formulario-material'
@@ -155,10 +168,9 @@ function columnasDe(tipoId, unidad) {
 
   return [
     {
-      clave: 'consumo',
-      titulo: 'Consumo',
-      valor: (m) =>
-        m.consumo === 'por_ml' ? 'Unidades por metro lineal' : 'Unidades por metro cuadrado',
+      clave: 'uso',
+      titulo: 'Uso',
+      valor: (m) => USOS_LEGIBLES[m.uso] || USOS_LEGIBLES.general,
     },
   ]
 }

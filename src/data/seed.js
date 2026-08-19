@@ -78,15 +78,25 @@ export const DEFINICIONES_SEMILLA = [
     designacion: 'Ángulo 25x25x0,5 mm',
     desperdicioPct: 5,
   },
+  // Los dos tornillos de un cielo no son intercambiables y por eso van separados:
+  // el punta fina rasga el yeso-cartón sin reventarlo y muerde la chapa delgada
+  // del omega; el punta broca perfora los dos metales del encuentro y su cabeza
+  // de lenteja queda plana para que la plancha apoye encima. Comprar uno creyendo
+  // que sirve para lo otro es el error que este material precargado evita.
   {
     tipo: 'pieza',
-    nombre: 'Tornillo autoperforante punta broca',
-    consumo: 'por_m2',
+    nombre: 'Tornillo drywall punta fina 6 × 1" (25 mm)',
+    uso: 'fijacion_plancha',
+  },
+  {
+    tipo: 'pieza',
+    nombre: 'Tornillo punta broca cabeza lenteja 8 × ½" (13 mm)',
+    uso: 'fijacion_metal',
   },
   {
     tipo: 'pieza',
     nombre: 'Alambre galvanizado #14',
-    consumo: 'por_m2',
+    uso: 'colgante',
   },
 ]
 

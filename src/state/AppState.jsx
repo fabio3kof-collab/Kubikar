@@ -38,7 +38,12 @@ import {
 
 import { ErrorAlmacenamiento, repo } from '../data/repo.js'
 import { nuevoRecinto, nuevoVertice } from '../data/schema.js'
-import { MODULO_POR_DEFECTO, obtenerModulo, parametrosPorDefecto } from '../modules/index.js'
+import {
+  MODULO_POR_DEFECTO,
+  completarParametros,
+  obtenerModulo,
+  parametrosPorDefecto,
+} from '../modules/index.js'
 import { obtenerUnidad } from '../core/units.js'
 import {
   ajustarAGrilla,
@@ -282,6 +287,37 @@ function aplicarHistorial(estado, paso) {
 }
 
 /**
+ * Pone al día los parámetros de cada recinto contra el esquema actual de su
+ * módulo, completando SOLO lo que falte.
+ *
+ * Un recinto guarda los parámetros que tenía el día que se cubicó. Cuando un
+ * módulo suma un parámetro —o parte uno en dos, como pasó con los tornillos—, el
+ * recinto viejo llega sin la clave nueva, y un booleano ausente es falso: la
+ * línea se caería del listado en silencio. Se completa al abrir, que es el único
+ * embudo por donde entra un proyecto, y no en la capa de datos, que a propósito
+ * no conoce el registro de módulos.
+ *
+ * @param {Object|null} proyecto
+ * @param {Array} biblioteca
+ * @returns {Object|null}
+ */
+function conParametrosAlDia(proyecto, biblioteca) {
+  if (!proyecto || !Array.isArray(proyecto.recintos)) return proyecto
+
+  let cambio = false
+  const recintos = proyecto.recintos.map((recinto) => {
+    const modulo = obtenerModulo(recinto.moduloId)
+    if (!modulo) return recinto
+    const parametros = completarParametros(modulo, recinto.parametros, biblioteca)
+    if (parametros === recinto.parametros) return recinto
+    cambio = true
+    return { ...recinto, parametros }
+  })
+
+  return cambio ? { ...proyecto, recintos } : proyecto
+}
+
+/**
  * Abre un proyecto: activa su primer recinto, adopta su unidad de presentación
  * y arranca el historial con la geometría que ya tiene, para que la primera
  * acción del usuario tenga a qué volver.
@@ -290,10 +326,11 @@ function aplicarHistorial(estado, paso) {
  * @returns {EstadoApp}
  */
 function conProyecto(estado, proyecto) {
-  const recinto = proyecto && proyecto.recintos.length > 0 ? proyecto.recintos[0] : null
+  const abierto = conParametrosAlDia(proyecto, estado.biblioteca)
+  const recinto = abierto && abierto.recintos.length > 0 ? abierto.recintos[0] : null
   return {
     ...estado,
-    proyecto,
+    proyecto: abierto,
     recintoActivoId: recinto ? recinto.id : null,
     unidadActiva:
       proyecto && typeof proyecto.unidadActiva === 'string'

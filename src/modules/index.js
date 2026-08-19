@@ -30,7 +30,9 @@ export {
   obtenerModulo,
   listarModulos,
   parametrosPorDefecto,
+  completarParametros,
   esquemaVisible,
+  materialesDe,
 } from './registry.js'
 
 export { cielo } from './cielo.js'

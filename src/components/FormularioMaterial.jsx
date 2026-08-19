@@ -35,7 +35,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 
 import { aMilimetros, aUnidad, obtenerUnidad } from '../core/units.js'
-import { CONSUMOS_PIEZA, nuevoMaterial } from '../data/schema.js'
+import { USOS_PIEZA, USO_PIEZA_POR_DEFECTO, nuevoMaterial } from '../data/schema.js'
 import {
   Aviso,
   Boton,
@@ -61,10 +61,17 @@ const OPCIONES_TIPO = [
   { valor: 'pieza', etiqueta: 'Pieza o accesorio' },
 ]
 
-/** Modos de consumo de una pieza. Son los dos que entiende el cálculo. */
-const OPCIONES_CONSUMO = [
-  { valor: 'por_m2', etiqueta: 'Unidades por metro cuadrado' },
-  { valor: 'por_ml', etiqueta: 'Unidades por metro lineal' },
+/**
+ * Para qué sirve una pieza, con el nombre con que se pide en obra. El uso no
+ * cambia cómo se cubica —eso lo decide el módulo— sino en qué parámetros se
+ * ofrece el material: es lo que evita tener que buscar el tornillo entre los
+ * alambres.
+ */
+const OPCIONES_USO = [
+  { valor: 'fijacion_plancha', etiqueta: 'Fijación a plancha' },
+  { valor: 'fijacion_metal', etiqueta: 'Fijación metal-metal' },
+  { valor: 'colgante', etiqueta: 'Colgante' },
+  { valor: 'general', etiqueta: 'Sin uso específico' },
 ]
 
 /**
@@ -167,8 +174,8 @@ export function FormularioMaterial({
   const [tipo, setTipo] = useState(inicial.tipo)
   const [nombre, setNombre] = useState(inicial.nombre || '')
   const [designacion, setDesignacion] = useState(inicial.designacion || '')
-  const [consumo, setConsumo] = useState(
-    CONSUMOS_PIEZA.includes(inicial.consumo) ? inicial.consumo : 'por_m2',
+  const [uso, setUso] = useState(
+    USOS_PIEZA.includes(inicial.uso) ? inicial.uso : USO_PIEZA_POR_DEFECTO,
   )
   const [desperdicio, setDesperdicio] = useState(
     Number.isFinite(inicial.desperdicioPct) ? inicial.desperdicioPct : 0,
@@ -225,7 +232,7 @@ export function FormularioMaterial({
     setLargoBarra(desdeMm(base.largoBarraMm, u.id))
     setRetazoMinimo(desdeMm(base.retazoMinimoMm, u.id))
     if (nuevoTipo === 'barra') setDesignacion(inicial.designacion || '')
-    if (nuevoTipo === 'pieza') setConsumo(CONSUMOS_PIEZA.includes(consumo) ? consumo : 'por_m2')
+    if (nuevoTipo === 'pieza') setUso(USOS_PIEZA.includes(uso) ? uso : USO_PIEZA_POR_DEFECTO)
     setErrores({})
   }
 
@@ -282,8 +289,8 @@ export function FormularioMaterial({
     }
 
     if (tipo === 'pieza') {
-      if (!CONSUMOS_PIEZA.includes(consumo)) {
-        fallas.consumo = 'Elige cómo se consume la pieza para poder cubicarla.'
+      if (!USOS_PIEZA.includes(uso)) {
+        fallas.uso = 'Elige para qué sirve la pieza para poder ofrecerla donde corresponde.'
       }
     }
 
@@ -337,7 +344,7 @@ export function FormularioMaterial({
       designacion: tipo === 'barra' && designacion.trim() ? designacion.trim() : null,
 
       // Pieza o accesorio.
-      consumo: tipo === 'pieza' ? consumo : null,
+      uso: tipo === 'pieza' ? uso : null,
 
       // Comunes. Una pieza no acarrea desperdicio: se cubica por densidad.
       desperdicioPct: tipo === 'pieza' ? 0 : (desperdicio ?? 0),
@@ -535,16 +542,16 @@ export function FormularioMaterial({
       {tipo === 'pieza' ? (
         <section className="flex flex-col gap-3">
           <Rotulo tinta="fuerte" como="h3">
-            Consumo
+            Uso
           </Rotulo>
           <Regla />
           <Selector
-            etiqueta="Unidad de consumo"
-            valor={consumo}
-            onChange={alCambiar('consumo', setConsumo)}
-            opciones={OPCIONES_CONSUMO}
-            error={errores.consumo}
-            ayuda="Con qué medida del recinto se multiplica la densidad al cubicar."
+            etiqueta="Para qué sirve"
+            valor={uso}
+            onChange={alCambiar('uso', setUso)}
+            opciones={OPCIONES_USO}
+            error={errores.uso}
+            ayuda="Define en qué parámetros del módulo se ofrece esta pieza. Sin uso específico aparece en todos."
           />
         </section>
       ) : null}

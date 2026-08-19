@@ -42,8 +42,25 @@ export const UNIDADES_VALIDAS = ['mm', 'cm', 'm']
 /** Tipos de material soportados por la biblioteca. */
 export const TIPOS_MATERIAL = ['plancha', 'barra', 'pieza']
 
-/** Modos de consumo de un material de tipo 'pieza'. */
-export const CONSUMOS_PIEZA = ['por_m2', 'por_ml']
+/**
+ * Para qué sirve un material de tipo 'pieza'. Es lo que permite que el selector
+ * de un parámetro ofrezca solo lo que corresponde: en "Tornillo metal-metal" no
+ * tiene por qué aparecer el alambre de colgar.
+ *
+ * `'general'` es COMODÍN, no cajón de sastre: significa "sirve para cualquier
+ * cosa" y por eso aparece en todos los selectores. Ahí está la migración de las
+ * bibliotecas guardadas antes de que este campo existiera: entran completas, sin
+ * el campo, y no se le vacía ningún desplegable al usuario. A medida que
+ * clasifique sus piezas, las listas se le van acortando solas.
+ *
+ * Reemplaza al antiguo `consumo` ('por_m2' | 'por_ml'), que prometía gobernar el
+ * cálculo y no lo gobernaba: ningún módulo lo leyó nunca. Un archivo viejo que lo
+ * traiga se lee igual; el campo simplemente se ignora al normalizar.
+ */
+export const USOS_PIEZA = ['fijacion_plancha', 'fijacion_metal', 'colgante', 'general']
+
+/** Uso de una pieza que no declara ninguno. Comodín: calza con todo. */
+export const USO_PIEZA_POR_DEFECTO = 'general'
 
 /**
  * Retazo mínimo aprovechable de una barra, en milímetros, cuando el material no
@@ -88,7 +105,10 @@ export const UNIDAD_POR_DEFECTO = 'cm'
  * @property {number|null} retazoMinimoMm solo 'barra': bajo ese largo el sobrante
  *                                        de una barra es descarte y no se reutiliza
  * @property {string|null} designacion    solo 'barra' (perfil comercial)
- * @property {'por_m2'|'por_ml'|null} consumo  solo 'pieza'
+ * @property {'fijacion_plancha'|'fijacion_metal'|'colgante'|'general'|null} uso
+ *                                        solo 'pieza': para qué sirve. Filtra los
+ *                                        selectores de parámetro; 'general' calza
+ *                                        con todos
  * @property {number} desperdicioPct      0 en 'pieza'
  * @property {number|null} precioUnitario null cuando no hay precio cargado
  * @property {string|null} codigoMaterial previsto para Karbec · null en esta versión
@@ -331,7 +351,7 @@ export function nuevoMaterial(tipo = 'plancha') {
     designacion: null,
 
     // pieza
-    consumo: t === 'pieza' ? 'por_m2' : null,
+    uso: t === 'pieza' ? USO_PIEZA_POR_DEFECTO : null,
 
     // comunes
     desperdicioPct: t === 'pieza' ? 0 : 5,
@@ -387,11 +407,15 @@ export function normalizarMaterial(obj) {
         ? fuente.designacion.trim()
         : null,
 
-    consumo:
+    // Una pieza guardada antes de que existiera este campo entra como comodín, no
+    // como error: sigue apareciendo en todos los selectores, tal como aparecía
+    // antes, y el usuario la clasifica cuando quiera. Lo mismo vale para un valor
+    // desconocido: esconder el material sería peor que ofrecerlo de más.
+    uso:
       tipo === 'pieza'
-        ? CONSUMOS_PIEZA.includes(fuente.consumo)
-          ? fuente.consumo
-          : 'por_m2'
+        ? USOS_PIEZA.includes(fuente.uso)
+          ? fuente.uso
+          : USO_PIEZA_POR_DEFECTO
         : null,
 
     desperdicioPct: tipo === 'pieza' ? 0 : Math.max(0, desperdicio === null ? 0 : desperdicio),

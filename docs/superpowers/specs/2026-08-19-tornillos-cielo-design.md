@@ -105,8 +105,15 @@ está presente: **no conoce el vocabulario**, igual que no conoce el significado
 las marcas de `preferir`. Esa ignorancia es lo que mantiene la regla 2 de
 `CLAUDE.md` en pie.
 
-`materialInicial(parametro, lista)` filtra los candidatos por uso —aceptando
-`'general'` como comodín— antes de aplicar las preferencias.
+`materialesDe(parametro, biblioteca)` concentra la regla de coincidencia, y
+`materialInicial` la usa para preseleccionar: el conjunto del que sale la
+preselección tiene que ser exactamente el que el desplegable muestra, o el panel
+llegaría con algo elegido que su propia lista no contiene.
+
+El comodín está acotado a donde el uso existe como concepto. `'general'` calza
+siempre; un material **sin** `uso` calza solo si el parámetro pide piezas. Sin ese
+límite, una plancha —que tampoco declara uso— se colaba en un parámetro que pide
+"fijación metal-metal", ofreciendo para atornillar algo que no atornilla nada.
 
 ### `src/components/ParametroCampo.jsx`
 
@@ -184,6 +191,21 @@ funciones con la misma forma que ya tiene `cubicarBarras` —devuelven `{linea}`
 `{aviso}`—: `cubicarTornillosPlancha`, `cubicarTornillosMetal` y `cubicarPorArea`,
 que queda para los colgantes. Sigue el patrón del archivo; no inventa uno nuevo.
 
+## Recintos ya guardados
+
+Partir un parámetro en dos deja a los recintos guardados sin las claves nuevas, y
+un booleano ausente se lee como falso: las dos líneas de tornillo se caerían del
+listado de un presupuesto viejo sin un solo aviso que lo explique. Quien abre una
+cubicación de hace un mes no tiene por qué notar solo que le faltan los tornillos.
+
+`completarParametros(modulo, parametros, biblioteca)` rellena **solo lo ausente**
+con los valores por defecto del módulo, y se aplica en `conProyecto`, que es el
+único embudo por donde entra un proyecto al estado. No va en la capa de datos
+porque `schema.js` a propósito no conoce el registro de módulos.
+
+Se completa solo lo que falta, nunca lo que ya tiene valor: un parámetro guardado
+es una decisión del usuario y pisarla con el defecto sería peor que la falta.
+
 ## Errores y avisos
 
 | Situación                                   | Nivel  | Efecto                       |
@@ -210,8 +232,12 @@ ejes cada 40 cm en X, omega de 3 m, plancha de 1,20 × 2,40 m—:
   la nombra.
 - La punta broca cuenta el colgante con el mismo número que publica la línea de
   colgantes.
+- Un material de otro uso al que apunte un proyecto guardado se trata como
+  ausente: el cálculo no confía en que la interfaz ya filtró.
 - `normalizarMaterial` manda a `'general'` una pieza sin `uso` y una con un `uso`
-  desconocido.
+  desconocido, y el antiguo `consumo` se ignora sin romper la lectura.
+- Un recinto guardado con los parámetros viejos recupera las dos líneas de
+  tornillo al abrirse, sin que se pise ninguna decisión ya guardada.
 
 ## Fuera de alcance
 

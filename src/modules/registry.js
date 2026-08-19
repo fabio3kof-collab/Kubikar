@@ -56,6 +56,10 @@
  * @property {number} [paso]
  * @property {*} [porDefecto]
  * @property {'plancha'|'barra'|'pieza'} [materialTipo]   // filtra la biblioteca
+ * @property {string} [materialUso]       // uso que debe declarar el material para
+ *                                        // ofrecerse acá. El registro solo compara
+ *                                        // texto: no sabe qué usos existen ni qué
+ *                                        // significan, igual que con `preferir`
  * @property {string[]} [preferir]        // marcas de texto que eligen el material
  *                                        // inicial dentro del tipo, en orden de
  *                                        // preferencia; cae al primero del tipo
@@ -165,6 +169,18 @@ const TIPOS_PARAMETRO = ['numero', 'porcentaje', 'material', 'booleano', 'selecc
 const TIPOS_MATERIAL = ['plancha', 'barra', 'pieza']
 
 /**
+ * Uso comodín: un material que lo declara calza con cualquier `materialUso` que
+ * pida un parámetro. Es la única palabra del vocabulario de usos que el registro
+ * conoce, y la conoce como regla de coincidencia, no como partida: no sabe qué es
+ * un colgante ni un tornillo, sabe que "general" calza con todo.
+ *
+ * Se repite acá en vez de importarse de `src/data/schema.js` por la misma razón
+ * que `TIPOS_MATERIAL`: el contrato de módulos no depende de la capa de datos.
+ * La autoridad del vocabulario sigue siendo el esquema.
+ */
+const USO_COMODIN = 'general'
+
+/**
  * Registro interno. Guarda el módulo y su orden de registro, para que
  * `listarModulos` sea estable entre recargas.
  * @type {Map<string,{modulo:ModuloCalculo,orden:number}>}
@@ -256,6 +272,19 @@ function normalizarModulo(modulo) {
     if (parametro.tipo === 'material' && !TIPOS_MATERIAL.includes(parametro.materialTipo)) {
       throw new Error(
         `registrarModulo: el parámetro de material "${parametro.clave}" del módulo "${id}" debe declarar materialTipo plancha, barra o pieza.`,
+      )
+    }
+    if (
+      parametro.materialUso !== undefined &&
+      (typeof parametro.materialUso !== 'string' || parametro.materialUso.trim() === '')
+    ) {
+      throw new Error(
+        `registrarModulo: el parámetro "${parametro.clave}" del módulo "${id}" declara un materialUso vacío. Escribe el uso o quita el campo.`,
+      )
+    }
+    if (parametro.materialUso !== undefined && parametro.tipo !== 'material') {
+      throw new Error(
+        `registrarModulo: el parámetro "${parametro.clave}" del módulo "${id}" declara materialUso sin ser de tipo material.`,
       )
     }
     if (parametro.tipo === 'seleccion' && !Array.isArray(parametro.opciones)) {
@@ -378,12 +407,45 @@ function normalizar(texto) {
 }
 
 /**
+ * Materiales de la biblioteca que un parámetro `tipo:'material'` puede ofrecer.
+ *
+ * Filtra por tipo y, si el parámetro lo pide, por uso declarado. El comodín
+ * `'general'` calza siempre: es lo que permite que una biblioteca guardada antes
+ * de que el uso existiera siga apareciendo completa en vez de vaciarse de golpe.
+ *
+ * Vive acá y no en la interfaz porque la regla de coincidencia es una sola: el
+ * material que el panel ofrece tiene que ser exactamente el mismo conjunto del
+ * que sale la preselección, o el usuario vería preseleccionado algo que su
+ * desplegable no contiene.
+ *
+ * @param {EsquemaParametro} parametro
+ * @param {Array} biblioteca
+ * @returns {Object[]}
+ */
+export function materialesDe(parametro, biblioteca) {
+  const lista = Array.isArray(biblioteca) ? biblioteca : []
+  if (!parametro || parametro.tipo !== 'material') return []
+  const uso = typeof parametro.materialUso === 'string' ? parametro.materialUso : null
+  return lista.filter((material) => {
+    if (!material || material.tipo !== parametro.materialTipo) return false
+    if (!uso) return true
+    if (material.uso === uso || material.uso === USO_COMODIN) return true
+    // Un material sin uso declarado calza con todo, pero SOLO donde el uso existe
+    // como concepto. La capa de datos ya convierte el ausente en comodín; esto
+    // cubre el material que llegue sin normalizar, y no puede ser más ancho: una
+    // plancha tampoco declara uso, y colarla en un parámetro que pide "fijación
+    // metal-metal" ofrecería para atornillar algo que no atornilla nada.
+    return !material.uso && parametro.materialTipo === 'pieza'
+  })
+}
+
+/**
  * Elige el material inicial de un parámetro `tipo:'material'`.
  *
- * Entre los materiales del tipo declarado, si el parámetro trae `preferir`, gana
+ * Entre los materiales que el parámetro puede ofrecer, si trae `preferir`, gana
  * el primero cuyo nombre o designación contenga alguna de esas marcas, en el
- * orden en que el módulo las escribió. Si ninguna calza, cae al primero del
- * tipo. El núcleo no sabe qué significan las marcas: solo compara texto. Así el
+ * orden en que el módulo las escribió. Si ninguna calza, cae al primero de la
+ * lista. El núcleo no sabe qué significan las marcas: solo compara texto. Así el
  * módulo expresa "el perimetral parte en un ángulo, no en un omega" sin que la
  * interfaz ni el registro conozcan una sola partida de construcción.
  *
@@ -392,7 +454,7 @@ function normalizar(texto) {
  * @returns {Object|null}
  */
 function materialInicial(parametro, lista) {
-  const candidatos = lista.filter((m) => m && m.tipo === parametro.materialTipo)
+  const candidatos = materialesDe(parametro, lista)
   if (candidatos.length === 0) return null
 
   const marcas = Array.isArray(parametro.preferir) ? parametro.preferir : []
@@ -450,6 +512,39 @@ export function parametrosPorDefecto(modulo, biblioteca) {
   }
 
   return parametros
+}
+
+/**
+ * Completa los parámetros de un recinto guardado con los valores por defecto de
+ * su módulo, SIN tocar ninguno de los que ya tienen valor.
+ *
+ * Un recinto guarda el objeto de parámetros que tenía el día que se cubicó. Si
+ * después el módulo suma un parámetro —o parte uno en dos, como pasó con los
+ * tornillos— ese recinto llega sin la clave nueva, y un booleano ausente es
+ * falso: la línea desaparecería del listado sin un aviso que lo explique. Quien
+ * abre un presupuesto viejo no tiene por qué darse cuenta solo de que le faltan
+ * los tornillos.
+ *
+ * Se completa solo lo ausente porque un valor guardado es una decisión del
+ * usuario: pisarla con el defecto sería peor que la falta.
+ *
+ * @param {ModuloCalculo|null} modulo
+ * @param {Object} parametros
+ * @param {Array} biblioteca
+ * @returns {Object} los mismos parámetros si no faltaba nada, o una copia completa
+ */
+export function completarParametros(modulo, parametros, biblioteca) {
+  const actuales =
+    parametros && typeof parametros === 'object' && !Array.isArray(parametros) ? parametros : {}
+  const esquema = modulo && Array.isArray(modulo.esquema) ? modulo.esquema : []
+
+  const faltantes = esquema.filter((parametro) => actuales[parametro.clave] === undefined)
+  if (faltantes.length === 0) return actuales
+
+  const defectos = parametrosPorDefecto(modulo, biblioteca)
+  const completos = { ...actuales }
+  for (const parametro of faltantes) completos[parametro.clave] = defectos[parametro.clave]
+  return completos
 }
 
 /**

@@ -9,7 +9,7 @@
 
      numero      → CampoNumero con min, max, paso, sufijo y valores rápidos
      porcentaje  → CampoNumero acotado a 0–100, con el mensaje de negativo
-     material    → Selector alimentado por la biblioteca filtrada por tipo
+     material    → Selector alimentado por la biblioteca filtrada por tipo y uso
      booleano    → Interruptor
      seleccion   → Selector con las opciones declaradas
 
@@ -21,6 +21,7 @@
 import { Library } from 'lucide-react'
 
 import { parsearNumeroCL } from '../core/units.js'
+import { materialesDe } from '../modules/registry.js'
 import { Aviso } from '../ui/Aviso.jsx'
 import { Boton } from '../ui/Boton.jsx'
 import { CampoNumero } from '../ui/CampoNumero.jsx'
@@ -93,10 +94,19 @@ export function ParametroCampo({
 
     case 'material': {
       const lista = Array.isArray(biblioteca) ? biblioteca : []
-      const materiales = lista.filter(
-        (material) => material && material.tipo === parametro.materialTipo,
-      )
-      const opciones = materiales.map((material) => ({
+      const materiales = materialesDe(parametro, lista)
+
+      // El material ya elegido se muestra siempre, aunque el filtro por uso lo
+      // deje fuera: si el usuario reclasifica una pieza en la Biblioteca, el
+      // parámetro que la usaba no puede quedarse con el selector en blanco sin
+      // decir nada. Se ve lo que está cubicando y él decide si lo cambia.
+      const elegido = typeof valor === 'string' && valor ? valor : null
+      const ausente =
+        elegido && !materiales.some((material) => material.id === elegido)
+          ? lista.find((material) => material && material.id === elegido)
+          : null
+
+      const opciones = (ausente ? [ausente, ...materiales] : materiales).map((material) => ({
         valor: material.id,
         etiqueta: material.nombre,
       }))
@@ -106,10 +116,17 @@ export function ParametroCampo({
         <Selector
           etiqueta={parametro.etiqueta}
           ayuda={parametro.ayuda}
-          valor={typeof valor === 'string' && valor ? valor : null}
+          valor={elegido}
           opciones={opciones}
           placeholder="Selecciona un material"
-          textoVacio={`No hay materiales de tipo ${parametro.materialTipo} en la biblioteca`}
+          // Con uso declarado el vacío se explica por el parámetro, no por el
+          // tipo interno: "no hay materiales de tipo pieza" no le dice nada a
+          // quien está buscando un tornillo de plancha.
+          textoVacio={
+            parametro.materialUso
+              ? `No hay materiales para «${parametro.etiqueta}» en la biblioteca`
+              : `No hay materiales de tipo ${parametro.materialTipo} en la biblioteca`
+          }
           deshabilitado={deshabilitado}
           onChange={(id) => onChange(id)}
           pie={

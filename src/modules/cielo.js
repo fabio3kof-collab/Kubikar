@@ -10,6 +10,12 @@
    que tocan el recinto. Dividir el área suponía que cada barra rinde entera, y
    con corridas de 2,6 m sobre barras de 3 m eso regalaba 40 cm por barra.
 
+   Los tornillos siguen la misma regla. Son DOS, porque en obra son dos: el
+   drywall punta fina se cuenta sobre los metros lineales de perfilería, que es
+   donde se atornilla la plancha, y el punta broca cabeza de lenteja se cuenta por
+   punto de unión —los dos extremos de cada corrida, más un colgante— porque une
+   metal con metal. Solo el colgante se sigue consumiendo por superficie.
+
    Sigue sin haber optimización de cortes: no se empaqueta, no se mezclan
    materiales, no se numeran piezas y no se reutiliza retazo entre recintos.
 
@@ -157,32 +163,74 @@ export const esquema = [
     ayuda:
       'Cubre rotura y error de corte. El retazo que se pierde en cada barra ya está contado aparte.',
   },
+  // Un cielo lleva DOS tornillos y no son intercambiables. El punta fina rasga el
+  // yeso-cartón sin reventarlo y muerde la chapa delgada del omega; el punta
+  // broca perfora los dos metales de un encuentro y su cabeza de lenteja queda
+  // plana para que la plancha apoye encima. Cubicarlos como uno solo obligaba a
+  // decidir en la ferretería cuál de los dos se había comprado.
   {
-    clave: 'tornillosActivo',
+    clave: 'tornillosPlanchaActivo',
     tipo: 'booleano',
-    etiqueta: 'Tornillos',
+    etiqueta: 'Tornillos de plancha',
     porDefecto: true,
     grupo: 'Accesorios',
   },
   {
-    clave: 'tornillosId',
+    clave: 'tornillosPlanchaId',
     tipo: 'material',
-    etiqueta: 'Material de tornillo',
+    etiqueta: 'Tornillo de plancha',
     materialTipo: 'pieza',
-    preferir: ['tornillo'],
-    dependeDe: 'tornillosActivo',
+    materialUso: 'fijacion_plancha',
+    preferir: ['punta fina', 'drywall', 'yeso'],
+    dependeDe: 'tornillosPlanchaActivo',
+    grupo: 'Accesorios',
+    ayuda: 'Drywall punta fina: fija la plancha al perfil.',
+  },
+  {
+    clave: 'tornillosPlanchaSeparacionCm',
+    tipo: 'numero',
+    etiqueta: 'Separación entre tornillos',
+    porDefecto: 20,
+    sugeridos: [15, 20, 25],
+    min: 1,
+    paso: 1,
+    sufijo: 'cm',
+    dependeDe: 'tornillosPlanchaActivo',
+    grupo: 'Accesorios',
+    ayuda:
+      'A lo largo de cada corrida de perfil. Como se cuenta sobre los metros lineales trazados, abrir la separación entre ejes baja los tornillos: hay menos perfil que atornillar.',
+  },
+  {
+    clave: 'tornillosMetalActivo',
+    tipo: 'booleano',
+    etiqueta: 'Tornillos metal-metal',
+    porDefecto: true,
     grupo: 'Accesorios',
   },
   {
-    clave: 'tornillosPorM2',
+    clave: 'tornillosMetalId',
+    tipo: 'material',
+    etiqueta: 'Tornillo metal-metal',
+    materialTipo: 'pieza',
+    materialUso: 'fijacion_metal',
+    preferir: ['punta broca', 'lenteja', 'broca'],
+    dependeDe: 'tornillosMetalActivo',
+    grupo: 'Accesorios',
+    ayuda: 'Punta broca cabeza de lenteja: une el perimetral con los perfiles y el colgante con el perfil.',
+  },
+  {
+    clave: 'tornillosMetalPorEncuentro',
     tipo: 'numero',
-    etiqueta: 'Tornillos por m²',
-    porDefecto: 15,
+    etiqueta: 'Tornillos por encuentro',
+    porDefecto: 2,
+    sugeridos: [1, 2, 3],
     min: 0,
     paso: 1,
-    sufijo: 'un/m²',
-    dependeDe: 'tornillosActivo',
+    sufijo: 'un',
+    dependeDe: 'tornillosMetalActivo',
     grupo: 'Accesorios',
+    ayuda:
+      'En cada extremo de corrida que llega al perimetral. La fijación del colgante al perfil se suma aparte, a uno por colgante.',
   },
   {
     clave: 'colgantesActivo',
@@ -196,6 +244,7 @@ export const esquema = [
     tipo: 'material',
     etiqueta: 'Material de colgante',
     materialTipo: 'pieza',
+    materialUso: 'colgante',
     // El colgante se cuelga de alambre, no de tornillos: sin esto ambos
     // accesorios arrancan en el mismo material.
     preferir: ['alambre', 'colgante'],
@@ -688,6 +737,200 @@ function cubicarBarras(datos) {
 }
 
 /* -----------------------------------------------------------------------------
+   Accesorios
+   -----------------------------------------------------------------------------
+   Tres cuentas distintas y por eso tres funciones, no un bucle con banderas: el
+   colgante se consume por superficie, el tornillo de plancha por metro lineal de
+   perfil y el tornillo metal-metal por punto de unión. Comparten la forma de
+   `cubicarBarras` —devuelven `{linea}` o `{aviso}`— para que `calcular` las trate
+   a todas igual.
+   -------------------------------------------------------------------------- */
+
+/**
+ * Accesorio que se consume por superficie: densidad × área neta.
+ *
+ * @param {Object} datos
+ * @param {Object|null} datos.material
+ * @param {number} datos.densidad
+ * @param {number} datos.areaNeta
+ * @param {string} datos.memoriaNeta
+ * @param {string} datos.clave
+ * @param {string} datos.etiquetaMaterial
+ * @param {string} datos.etiquetaDensidad
+ * @returns {{linea:LineaMaterial}|{aviso:AvisoCalculo}}
+ */
+function cubicarPorArea(datos) {
+  if (!datos.material) {
+    return {
+      aviso: {
+        nivel: 'error',
+        mensaje: `Falta seleccionar el material de ${datos.etiquetaMaterial}.`,
+      },
+    }
+  }
+  if (!(datos.densidad > 0)) {
+    return {
+      aviso: {
+        nivel: 'info',
+        mensaje: `${datos.etiquetaDensidad} está en 0. Esa línea no se cubica.`,
+      },
+    }
+  }
+
+  const teorica = datos.areaNeta * datos.densidad
+  const final = techo(teorica)
+  return {
+    linea: crearLinea({
+      clave: datos.clave,
+      nombre: datos.material.nombre,
+      materialId: datos.material.id,
+      unidad: 'un',
+      cantidadTeorica: teorica,
+      desperdicioPct: 0,
+      cantidadFinal: final,
+      nota: `${datos.memoriaNeta} × ${fCorto(datos.densidad)} un/m² = ${f2(teorica)} → ${final} un`,
+      precioUnitario: datos.material.precioUnitario,
+    }),
+  }
+}
+
+/**
+ * Tornillo que fija la plancha al perfil.
+ *
+ * Se cuenta sobre los METROS LINEALES REALES de perfilería, que es donde va el
+ * tornillo: la plancha se atornilla donde cruza el perfil, no repartida sobre la
+ * superficie. Por eso reacciona a la separación entre ejes —abrirla de 40 a 60 cm
+ * baja los tornillos de verdad— cosa que una densidad por m² no podía ver.
+ *
+ * El precio de esa fidelidad es esta dependencia: sin corridas trazadas no hay de
+ * dónde contar, y la línea sale del listado declarándolo.
+ *
+ * @param {Object} datos
+ * @param {Object|null} datos.material
+ * @param {number[]|null} datos.corridas   largos en mm, ya recortados contra la planta
+ * @param {number} datos.separacionCm
+ * @returns {{linea:LineaMaterial}|{aviso:AvisoCalculo}}
+ */
+function cubicarTornillosPlancha(datos) {
+  if (!datos.material) {
+    return {
+      aviso: { nivel: 'error', mensaje: 'Falta seleccionar el material de Tornillo de plancha.' },
+    }
+  }
+  if (!Array.isArray(datos.corridas) || datos.corridas.length === 0) {
+    return {
+      aviso: {
+        nivel: 'error',
+        mensaje:
+          'Los tornillos de plancha se cuentan sobre los metros lineales de perfilería, y la perfilería no se pudo trazar. Esa línea queda fuera.',
+      },
+    }
+  }
+  if (!(datos.separacionCm > 0)) {
+    return {
+      aviso: {
+        nivel: 'error',
+        mensaje:
+          'La separación entre tornillos no puede ser 0. Ingresa un valor mayor que 0 para cubicar los tornillos de plancha.',
+      },
+    }
+  }
+
+  const mlPerfil = datos.corridas.reduce((suma, largo) => suma + largo, 0) / MM_POR_M
+  const pasoM = datos.separacionCm / 100
+  const teorica = mlPerfil / pasoM
+  const final = techo(teorica)
+
+  return {
+    linea: crearLinea({
+      clave: 'cielo.tornillosPlancha',
+      nombre: datos.material.nombre,
+      materialId: datos.material.id,
+      unidad: 'un',
+      cantidadTeorica: teorica,
+      desperdicioPct: 0,
+      cantidadFinal: final,
+      nota: `${f2(mlPerfil)} ml de perfilería ÷ ${f2(pasoM)} m entre tornillos = ${f2(teorica)} → ${final} un`,
+      precioUnitario: datos.material.precioUnitario,
+    }),
+  }
+}
+
+/**
+ * Tornillo metal-metal: perimetral con perfil, y colgante con perfil.
+ *
+ * Los encuentros salen de la planta, no de una densidad: cada corrida trazada
+ * llega al perimetral por sus DOS extremos, y esas corridas son las mismas que ya
+ * compraron las barras. No depende de que el perimetral esté activo, porque el
+ * extremo del perfil hay que fijarlo igual; quien no los quiera apaga la línea
+ * con su propio interruptor.
+ *
+ * La fijación del colgante va fija en uno por colgante: un colgante se amarra al
+ * perfil en un punto y eso no es una variable. El número de colgantes llega ya
+ * redondeado desde su propia línea —no se recalcula acá— para que las dos líneas
+ * no puedan discrepar.
+ *
+ * @param {Object} datos
+ * @param {Object|null} datos.material
+ * @param {number[]|null} datos.corridas
+ * @param {number} datos.porEncuentro
+ * @param {number} datos.colgantes  cantidad final de la línea de colgantes
+ * @returns {{linea:LineaMaterial}|{aviso:AvisoCalculo}}
+ */
+function cubicarTornillosMetal(datos) {
+  if (!datos.material) {
+    return {
+      aviso: { nivel: 'error', mensaje: 'Falta seleccionar el material de Tornillo metal-metal.' },
+    }
+  }
+  if (!Array.isArray(datos.corridas) || datos.corridas.length === 0) {
+    return {
+      aviso: {
+        nivel: 'error',
+        mensaje:
+          'Los tornillos metal-metal se cuentan sobre los encuentros de la perfilería, que no se pudo trazar. Esa línea queda fuera.',
+      },
+    }
+  }
+
+  const encuentros = datos.corridas.length * 2
+  const porEncuentro = datos.porEncuentro > 0 ? datos.porEncuentro : 0
+  const colgantes = datos.colgantes > 0 ? datos.colgantes : 0
+  const teorica = encuentros * porEncuentro + colgantes
+
+  if (!(teorica > 0)) {
+    return {
+      aviso: {
+        nivel: 'info',
+        mensaje:
+          'Tornillos por encuentro está en 0 y no hay colgantes que fijar. Esa línea no se cubica.',
+      },
+    }
+  }
+
+  const final = techo(teorica)
+  const deEncuentros = `${datos.corridas.length} ${datos.corridas.length === 1 ? 'corrida' : 'corridas'} × 2 extremos × ${fCorto(porEncuentro)} un = ${encuentros * porEncuentro} un`
+  const deColgantes =
+    colgantes > 0
+      ? ` · ${colgantes} ${colgantes === 1 ? 'colgante' : 'colgantes'} × 1 un = ${colgantes} un`
+      : ''
+
+  return {
+    linea: crearLinea({
+      clave: 'cielo.tornillosMetal',
+      nombre: datos.material.nombre,
+      materialId: datos.material.id,
+      unidad: 'un',
+      cantidadTeorica: teorica,
+      desperdicioPct: 0,
+      cantidadFinal: final,
+      nota: `${deEncuentros}${deColgantes} → ${final} un`,
+      precioUnitario: datos.material.precioUnitario,
+    }),
+  }
+}
+
+/* -----------------------------------------------------------------------------
    Cálculo
    -------------------------------------------------------------------------- */
 
@@ -705,7 +948,9 @@ function cubicarBarras(datos) {
  *              teórica  = mlTotales / largoBarraM
  *   PERIMETRAL mlTotales = perímetro
  *              teórica  = mlTotales / largoBarraM
- *   ACCESORIOS teórica  = areaNeta × densidad
+ *   TORNILLO   plancha  = (Σ corridas / 1000) / (separacionTornilloCm / 100)
+ *              metal    = corridas × 2 extremos × porEncuentro + colgantes
+ *   COLGANTES  teórica  = areaNeta × densidad
  *   final = ceil(teórica × (1 + desperdicio/100))
  *
  * Ninguna división ocurre sin validar antes su divisor.
@@ -920,59 +1165,59 @@ export function calcular(ctx) {
   }
 
   // --- Accesorios -----------------------------------------------------------
-  const accesorios = [
-    {
-      activo: 'tornillosActivo',
-      materialClave: 'tornillosId',
-      densidadClave: 'tornillosPorM2',
-      clave: 'cielo.tornillos',
-      etiquetaMaterial: 'Material de tornillo',
-      etiquetaDensidad: 'Tornillos por m²',
-    },
-    {
-      activo: 'colgantesActivo',
-      materialClave: 'colgantesId',
-      densidadClave: 'colgantesPorM2',
+  // Las corridas que los tornillos usan son las MISMAS que compraron las barras.
+  // Se leen del reparto y no del resultado de la perfilería a propósito: un omega
+  // mal configurado en la Biblioteca deja sin línea al perfil, pero la planta
+  // sigue trazada y los tornillos siguen siendo contables.
+  const corridas =
+    reparto && reparto.perfil && !reparto.perfil.excedido && reparto.perfil.corridas.length > 0
+      ? reparto.perfil.corridas
+      : null
+
+  // El colgante se cubica ANTES que el tornillo metal-metal porque ese tornillo
+  // lee su cantidad ya redondeada: el que amarra el colgante al perfil sale de la
+  // misma caja, y recalcularlo con otro redondeo dejaría dos líneas que se
+  // contradicen. Un solo dato, leído dos veces —el mismo trato que el reparto.
+  // La línea se guarda y se agrega al final para que el listado conserve el
+  // orden del panel: primero los tornillos, después los colgantes.
+  /** @type {LineaMaterial|null} */
+  let lineaColgantes = null
+  if (parametros.colgantesActivo) {
+    const cubicado = cubicarPorArea({
+      material: buscarMaterial(biblioteca, parametros.colgantesId, 'pieza'),
+      densidad: numero(parametros.colgantesPorM2, 0),
+      areaNeta,
+      memoriaNeta,
       clave: 'cielo.colgantes',
       etiquetaMaterial: 'Material de colgante',
       etiquetaDensidad: 'Colgantes por m²',
-    },
-  ]
-
-  for (const accesorio of accesorios) {
-    if (!parametros[accesorio.activo]) continue
-    const material = buscarMaterial(biblioteca, parametros[accesorio.materialClave], 'pieza')
-    if (!material) {
-      avisos.push({
-        nivel: 'error',
-        mensaje: `Falta seleccionar el material de ${accesorio.etiquetaMaterial}.`,
-      })
-      continue
-    }
-    const densidad = numero(parametros[accesorio.densidadClave], 0)
-    if (!(densidad > 0)) {
-      avisos.push({
-        nivel: 'info',
-        mensaje: `${accesorio.etiquetaDensidad} está en 0. Esa línea no se cubica.`,
-      })
-      continue
-    }
-    const teorica = areaNeta * densidad
-    const final = techo(teorica)
-    lineas.push(
-      crearLinea({
-        clave: accesorio.clave,
-        nombre: material.nombre,
-        materialId: material.id,
-        unidad: 'un',
-        cantidadTeorica: teorica,
-        desperdicioPct: 0,
-        cantidadFinal: final,
-        nota: `${memoriaNeta} × ${fCorto(densidad)} un/m² = ${f2(teorica)} → ${final} un`,
-        precioUnitario: material.precioUnitario,
-      }),
-    )
+    })
+    if (cubicado.aviso) avisos.push(cubicado.aviso)
+    else lineaColgantes = cubicado.linea
   }
+
+  if (parametros.tornillosPlanchaActivo) {
+    const cubicado = cubicarTornillosPlancha({
+      material: buscarMaterial(biblioteca, parametros.tornillosPlanchaId, 'pieza'),
+      corridas,
+      separacionCm: numero(parametros.tornillosPlanchaSeparacionCm, 0),
+    })
+    if (cubicado.aviso) avisos.push(cubicado.aviso)
+    else lineas.push(cubicado.linea)
+  }
+
+  if (parametros.tornillosMetalActivo) {
+    const cubicado = cubicarTornillosMetal({
+      material: buscarMaterial(biblioteca, parametros.tornillosMetalId, 'pieza'),
+      corridas,
+      porEncuentro: numero(parametros.tornillosMetalPorEncuentro, 0),
+      colgantes: lineaColgantes ? lineaColgantes.cantidadFinal : 0,
+    })
+    if (cubicado.aviso) avisos.push(cubicado.aviso)
+    else lineas.push(cubicado.linea)
+  }
+
+  if (lineaColgantes) lineas.push(lineaColgantes)
 
   // Con geometría válida el recinto es calculable siempre que haya quedado al
   // menos una línea: si faltan todos los materiales no hay nada que cubicar y
@@ -1081,7 +1326,8 @@ export function trazar(ctx) {
 export const cielo = {
   id: 'cielo',
   nombre: 'Cielo',
-  descripcion: 'Cielo falso de acero galvanizado: planchas y perfilería omega.',
+  descripcion:
+    'Cielo falso de acero galvanizado: planchas, perfilería omega y sus fijaciones.',
   disponible: true,
   esquema,
   calcular,

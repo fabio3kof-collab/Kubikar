@@ -78,7 +78,8 @@ function contextoRectangulo(anchoMm, altoMm, parametros = {}) {
       perimetralActivo: true,
       perimetralId: ANGULO.id,
       perimetralDesperdicio: 5,
-      tornillosActivo: false,
+      tornillosPlanchaActivo: false,
+      tornillosMetalActivo: false,
       colgantesActivo: false,
       descuentoM2: 0,
       ...parametros,
@@ -196,7 +197,8 @@ test('las posiciones que no tocan la planta no se cuentan ni se dibujan', () => 
       perfilDireccion: 'x',
       perfilDesperdicio: 0,
       perimetralActivo: false,
-      tornillosActivo: false,
+      tornillosPlanchaActivo: false,
+      tornillosMetalActivo: false,
       colgantesActivo: false,
       descuentoM2: 0,
     },
@@ -244,17 +246,144 @@ test('un perfil con traslapo mayor que su barra se declara, no se cubica mal', (
   )
 })
 
-test('sin descuento por vanos el área neta sigue mandando en los accesorios', () => {
+/* -----------------------------------------------------------------------------
+   Accesorios
+   -----------------------------------------------------------------------------
+   Los dos tornillos de un cielo no son intercambiables y no se cuentan igual: el
+   punta fina va sobre los metros lineales de perfilería, donde se atornilla la
+   plancha, y el punta broca va por punto de unión metal-metal.
+   -------------------------------------------------------------------------- */
+
+const PUNTA_FINA = {
+  id: 'mat-punta-fina',
+  tipo: 'pieza',
+  nombre: 'Tornillo drywall punta fina 6 × 1"',
+  uso: 'fijacion_plancha',
+  precioUnitario: null,
+}
+
+const PUNTA_BROCA = {
+  id: 'mat-punta-broca',
+  tipo: 'pieza',
+  nombre: 'Tornillo punta broca cabeza lenteja 8 × ½"',
+  uso: 'fijacion_metal',
+  precioUnitario: null,
+}
+
+const ALAMBRE = {
+  id: 'mat-alambre',
+  tipo: 'pieza',
+  nombre: 'Alambre galvanizado #14',
+  uso: 'colgante',
+  precioUnitario: null,
+}
+
+/**
+ * Contexto con los tres accesorios encendidos y sus materiales cargados.
+ * @param {Object} [parametros]
+ */
+function contextoConAccesorios(parametros = {}) {
   const ctx = contextoRectangulo(4000, 2600, {
-    tornillosActivo: true,
-    tornillosId: 'mat-tornillo',
-    tornillosPorM2: 15,
+    tornillosPlanchaActivo: true,
+    tornillosPlanchaId: PUNTA_FINA.id,
+    tornillosPlanchaSeparacionCm: 20,
+    tornillosMetalActivo: true,
+    tornillosMetalId: PUNTA_BROCA.id,
+    tornillosMetalPorEncuentro: 2,
+    colgantesActivo: true,
+    colgantesId: ALAMBRE.id,
+    colgantesPorM2: 1.5,
+    ...parametros,
   })
-  ctx.biblioteca = [
-    ...BIBLIOTECA,
-    { id: 'mat-tornillo', tipo: 'pieza', nombre: 'Tornillo', precioUnitario: null },
-  ]
-  const tornillos = linea(calcular(ctx), 'cielo.tornillos')
-  // 10,40 m² × 15 = 156 unidades: los accesorios no cambian con este trabajo.
-  assert.equal(tornillos.cantidadFinal, 156)
+  ctx.biblioteca = [...BIBLIOTECA, PUNTA_FINA, PUNTA_BROCA, ALAMBRE]
+  return ctx
+}
+
+test('el tornillo de plancha se cuenta sobre los metros lineales de perfilería', () => {
+  const tornillos = linea(calcular(contextoConAccesorios()), 'cielo.tornillosPlancha')
+  // 7 corridas de 4,00 m = 28,00 ml ÷ 0,20 m entre tornillos.
+  assert.equal(tornillos.cantidadTeorica, 140)
+  assert.equal(tornillos.cantidadFinal, 140)
+  assert.match(tornillos.nota, /28,00 ml de perfilería/)
+})
+
+test('abrir la separación entre ejes BAJA el tornillo de plancha', () => {
+  // Es la razón de ser del cambio: con 15 un/m² sobre el área neta este número
+  // no se movía ni un tornillo, y en obra sí se mueve. A 60 cm quedan 5 ejes en
+  // vez de 7, o sea 20,00 ml de perfil en vez de 28,00.
+  const a40 = linea(calcular(contextoConAccesorios()), 'cielo.tornillosPlancha')
+  const a60 = linea(
+    calcular(contextoConAccesorios({ separacionCm: 60 })),
+    'cielo.tornillosPlancha',
+  )
+  assert.equal(a40.cantidadFinal, 140)
+  assert.equal(a60.cantidadFinal, 100)
+})
+
+test('el tornillo metal-metal cuenta los encuentros trazados y los colgantes', () => {
+  const resultado = calcular(contextoConAccesorios())
+  const metal = linea(resultado, 'cielo.tornillosMetal')
+  // 7 corridas × 2 extremos × 2 un = 28, más 16 colgantes a uno cada uno.
+  assert.equal(metal.cantidadFinal, 44)
+  assert.match(metal.nota, /7 corridas × 2 extremos × 2 un = 28 un/)
+  assert.match(metal.nota, /16 colgantes × 1 un = 16 un/)
+})
+
+test('el tornillo del colgante usa el MISMO número que publica la línea de colgantes', () => {
+  // Si se recalculara acá con otro redondeo, dos líneas del mismo listado
+  // dirían cosas distintas del mismo colgante.
+  const resultado = calcular(contextoConAccesorios({ colgantesPorM2: 1.7 }))
+  const colgantes = linea(resultado, 'cielo.colgantes')
+  const metal = linea(resultado, 'cielo.tornillosMetal')
+  // 10,40 m² × 1,7 = 17,68 → 18 colgantes.
+  assert.equal(colgantes.cantidadFinal, 18)
+  assert.match(metal.nota, new RegExp(`${colgantes.cantidadFinal} colgantes × 1 un`))
+  assert.equal(metal.cantidadFinal, 28 + colgantes.cantidadFinal)
+})
+
+test('el colgante se sigue cubicando por superficie', () => {
+  const colgantes = linea(calcular(contextoConAccesorios()), 'cielo.colgantes')
+  // 10,40 m² × 1,5 = 15,60: esta cuenta no cambia con este trabajo.
+  assert.equal(colgantes.cantidadFinal, 16)
+})
+
+test('sin perfilería trazada los tornillos salen del listado declarándolo', () => {
+  // Sin separación entre ejes no hay corridas de dónde contar. El aviso tiene que
+  // nombrar la causa: el usuario está mirando el listado, no el código.
+  const resultado = calcular(contextoConAccesorios({ separacionCm: 0 }))
+  assert.equal(
+    resultado.lineas.some((l) => l.clave.startsWith('cielo.tornillos')),
+    false,
+  )
+  assert.ok(
+    resultado.avisos.some((a) => a.nivel === 'error' && /perfilería/i.test(a.mensaje)),
+    'falta el aviso que explica por qué no hay tornillos',
+  )
+  // El colgante no depende de la perfilería y sigue cubicándose.
+  assert.equal(linea(resultado, 'cielo.colgantes').cantidadFinal, 16)
+})
+
+test('que falte un tornillo no saca del listado al otro', () => {
+  const ctx = contextoConAccesorios({ tornillosPlanchaId: null })
+  const resultado = calcular(ctx)
+  assert.equal(
+    resultado.lineas.some((l) => l.clave === 'cielo.tornillosPlancha'),
+    false,
+  )
+  assert.ok(linea(resultado, 'cielo.tornillosMetal'))
+  assert.ok(
+    resultado.avisos.some((a) => /Tornillo de plancha/.test(a.mensaje)),
+    'falta el aviso que nombra el material ausente',
+  )
+})
+
+test('un material de otro uso no sirve como tornillo: se trata como ausente', () => {
+  // El selector filtra por uso, pero un proyecto guardado puede apuntar a
+  // cualquier id. El cálculo no puede confiar en que la interfaz ya filtró.
+  const ctx = contextoConAccesorios({ tornillosMetalId: OMEGA.id })
+  const resultado = calcular(ctx)
+  assert.equal(
+    resultado.lineas.some((l) => l.clave === 'cielo.tornillosMetal'),
+    false,
+  )
 })
