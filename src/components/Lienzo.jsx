@@ -1280,11 +1280,15 @@ export function Lienzo({ className } = {}) {
     const escrito = parsearNumeroCL(cotaManual.texto)
     if (escrito === null || !(escrito > 0)) return
     const largoMm = aMilimetros(escrito, unidad.id)
-    // El imán NO se aplica: quien escribe 247 pide 247, no el múltiplo de
-    // grilla más cercano. La grilla es ayuda del puntero, no de la cifra.
+    // `ajustar: false` es la parte que importa de esta llamada: quien escribe
+    // 9,53 pide 9,53, no el múltiplo de grilla más cercano. La grilla es ayuda
+    // del PUNTERO, no de la cifra, y con paso de 10 cm redondeaba a 9,50 una
+    // medida que se tomó con huincha. Tampoco hace falta el ortogonal: la
+    // dirección ya viene de la guía, que sí pasó por él.
     acciones.agregarVertice(
       ultimoVertice.x + cotaManual.dirX * largoMm,
       ultimoVertice.y + cotaManual.dirY * largoMm,
+      { ajustar: false },
     )
     setCotaManual(null)
     setCursorMm(null)
