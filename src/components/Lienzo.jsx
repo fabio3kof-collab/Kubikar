@@ -42,11 +42,11 @@ import {
 
 import {
   ajustarAGrilla,
+  aplicarDetentes,
   areaMm2 as areaDeVertices,
   boundingBox,
   centroide,
   cercaDe,
-  restringirOrtogonal,
   segmentos as segmentosDe,
 } from '../core/geometry.js'
 import {
@@ -814,22 +814,20 @@ export function Lienzo({ className } = {}) {
   }, [])
 
   /**
-   * Vista previa del imán y del modo ortogonal. Las mismas funciones que aplica
-   * el estado al confirmar, así que la línea guía muestra exactamente el punto
-   * que va a quedar marcado.
+   * Vista previa de los detentes. Es LA MISMA función que aplica el estado al
+   * confirmar, así que la línea guía muestra exactamente el punto que va a
+   * quedar marcado y el vértice no salta al soltar el dedo.
    * @param {{x:number,y:number}} punto
    * @param {{x:number,y:number}|null} desde
    * @returns {{x:number,y:number}}
    */
   const previsualizar = useCallback(
-    (punto, desde) => {
-      let q = punto
-      if (dibujo.imanGrilla) {
-        q = { x: ajustarAGrilla(q.x, pasoMm), y: ajustarAGrilla(q.y, pasoMm) }
-      }
-      if (dibujo.ortogonal && desde) q = restringirOrtogonal(desde, q)
-      return q
-    },
+    (punto, desde) =>
+      aplicarDetentes(desde, punto, {
+        imanGrilla: dibujo.imanGrilla,
+        ortogonal: dibujo.ortogonal,
+        pasoMm,
+      }),
     [dibujo.imanGrilla, dibujo.ortogonal, pasoMm],
   )
 
@@ -1035,7 +1033,12 @@ export function Lienzo({ className } = {}) {
 
     if (tecla === 'a' || tecla === 'A') {
       evento.preventDefault()
-      acciones.agregarVertice(caretPunto.x, caretPunto.y)
+      // Sin detentes: el caret ya se mueve de a un paso de grilla desde el
+      // vértice anterior, así que el punto es exacto por construcción. Pasarlo
+      // por el imán solo podía estropearlo —el angular lo giraría, y el de
+      // grilla lo movía cuando el vértice anterior quedaba fuera de ella—, y el
+      // vértice terminaba en un lugar distinto del que marcaba el caret.
+      acciones.agregarVertice(caretPunto.x, caretPunto.y, { ajustar: false })
       setCaret(null)
       return
     }

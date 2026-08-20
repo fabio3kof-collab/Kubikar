@@ -46,11 +46,10 @@ import {
 } from '../modules/index.js'
 import { obtenerUnidad } from '../core/units.js'
 import {
-  ajustarAGrilla,
+  aplicarDetentes,
   fijarLargoSegmento as fijarLargoDeSegmento,
   limpiarVertices,
   moverVertice as moverVerticeEn,
-  restringirOrtogonal,
 } from '../core/geometry.js'
 import {
   crearHistorial,
@@ -817,13 +816,12 @@ function esFallaDeAlmacenamiento(falla) {
 }
 
 /**
- * Aplica imán a la grilla y, si corresponde, restricción ortogonal respecto del
- * punto de partida. Se ajusta primero a la grilla y después se ortogonaliza,
- * para que el trazo quede exactamente horizontal o vertical respecto del vértice
- * anterior aunque ese vértice no esté sobre la grilla.
+ * Pasa el punto por los detentes del dibujo. La secuencia entera vive en
+ * `aplicarDetentes`, que es la MISMA que usa la vista previa del lienzo: acá solo
+ * se leen los interruptores del estado y se le entregan.
  *
  * @param {EstadoApp} estado
- * @param {{x:number,y:number}|null} desde  vértice de referencia para el modo ortogonal
+ * @param {{x:number,y:number}|null} desde  vértice de referencia del trazo
  * @param {number} x
  * @param {number} y
  * @param {{ajustar?:boolean, ortogonal?:boolean}} [opciones]
@@ -831,19 +829,18 @@ function esFallaDeAlmacenamiento(falla) {
  */
 function puntoAjustado(estado, desde, x, y, opciones) {
   const ajustar = !opciones || opciones.ajustar !== false
-  let punto = { x: Number(x), y: Number(y) }
+  const punto = { x: Number(x), y: Number(y) }
   if (!Number.isFinite(punto.x)) punto.x = 0
   if (!Number.isFinite(punto.y)) punto.y = 0
   if (!ajustar) return punto
 
-  if (estado.dibujo.imanGrilla) {
-    const paso = estado.dibujo.pasoGrillaMm
-    punto = { x: ajustarAGrilla(punto.x, paso), y: ajustarAGrilla(punto.y, paso) }
-  }
   const conOrtogonal =
     opciones && opciones.ortogonal !== undefined ? opciones.ortogonal : estado.dibujo.ortogonal
-  if (conOrtogonal && desde) punto = restringirOrtogonal(desde, punto)
-  return punto
+  return aplicarDetentes(desde, punto, {
+    imanGrilla: estado.dibujo.imanGrilla,
+    ortogonal: conOrtogonal,
+    pasoMm: estado.dibujo.pasoGrillaMm,
+  })
 }
 
 /**

@@ -10,6 +10,11 @@
      · Los DETENTES son las herramientas del dibujo. Imán y ortogonal son
        interruptores sostenidos y llevan `data-state`; ajustar vista, deshacer,
        rehacer y limpiar son pulsaciones que no quedan encendidas.
+
+       El imán es UNO solo y hace dos cosas, porque en la mano del que dibuja son
+       la misma: pega el vértice a la grilla y pega el trazo a los 15°. Separarlo
+       en dos interruptores habría sumado un noveno detente a una franja que ya
+       se envuelve, y habría dejado prender dos ayudas que se contradicen.
      · El BOTÓN PRIMARIO es la única acción que cierra el trabajo: "Cerrar
        polígono". Cuando está deshabilitado la razón se imprime al lado, no en
        un globo que hay que descubrir con el puntero.
@@ -197,8 +202,8 @@ export function LienzoControles({
         activo={imanGrilla}
         deshabilitado={deshabilitado}
         onClick={() => onImanGrilla(!imanGrilla)}
-        etiquetaAccesible="Imán a la grilla"
-        title="Imán a la grilla"
+        etiquetaAccesible="Imán"
+        title="Imán: pega el vértice a la grilla y el trazo a los 15°"
       />
       <Detente
         tamano="sm"

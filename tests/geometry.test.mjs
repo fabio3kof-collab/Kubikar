@@ -8,13 +8,19 @@
    Los casos de borde son el objetivo real de este archivo: el primer eje de
    perfilería nace justo sobre el borde del rectángulo envolvente, así que la
    convención de cruce se prueba explícitamente en vez de darse por buena.
+
+   Se fijan además los DETENTES del trazado. Son la única geometría que el
+   usuario siente con la mano, y su orden importa: si el imán a la grilla corre
+   después del angular, el punto se sale del ángulo recién imantado.
    ========================================================================== */
 
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
 import {
+  aplicarDetentes,
   contienePunto,
+  imantarAngulo,
   recortarLineaEnPoligono,
   rectanguloTocaPoligono,
 } from '../src/core/geometry.js'
@@ -148,4 +154,90 @@ test('un rectángulo que atraviesa un brazo de la U toca solo por las aristas', 
 test('rectanguloTocaPoligono con entrada basura devuelve false y no lanza', () => {
   assert.equal(rectanguloTocaPoligono(null, null), false)
   assert.equal(rectanguloTocaPoligono(RECT, { x: 0, y: 0, ancho: 0, alto: 0 }), false)
+})
+/* -----------------------------------------------------------------------------
+   Detentes del trazado
+   -------------------------------------------------------------------------- */
+
+const ORIGEN = { x: 0, y: 0 }
+
+/** Ángulo del trazo en grados, para leer las aserciones como se leen en obra. */
+function grados(desde, hasta) {
+  return (Math.atan2(hasta.y - desde.y, hasta.x - desde.x) * 180) / Math.PI
+}
+
+test('el imán angular pega el trazo al múltiplo de 15 más cercano', () => {
+  // 43° cae a 2° de los 45: entra en la tolerancia y sale exacto.
+  const p = imantarAngulo(ORIGEN, { x: 1000, y: 932.5 })
+  assert.ok(p, 'el trazo a 43° debería imantarse')
+  assert.ok(Math.abs(grados(ORIGEN, p) - 45) < 1e-9)
+})
+
+test('el imán angular conserva el largo del trazo', () => {
+  const p = imantarAngulo(ORIGEN, { x: 3000, y: 100 })
+  assert.ok(p)
+  assert.ok(Math.abs(Math.hypot(p.x, p.y) - Math.hypot(3000, 100)) < 1e-9)
+})
+
+test('fuera de la tolerancia el imán angular no toca nada: es imán, no jaula', () => {
+  // 22° está a 7° de los 15 y a 8° de los 30: ningún detente lo alcanza.
+  assert.equal(imantarAngulo(ORIGEN, { x: 1000, y: 404 }), null)
+})
+
+test('la horizontal y la vertical salen exactas, sin ruido de coma flotante', () => {
+  const h = imantarAngulo(ORIGEN, { x: 3000, y: 12 })
+  assert.deepEqual(h, { x: Math.hypot(3000, 12), y: 0 })
+  const v = imantarAngulo(ORIGEN, { x: 12, y: 3000 })
+  assert.equal(v.x, 0)
+})
+
+test('con paso de largo, el trazo se pega sobre el rayo y no a la grilla absoluta', () => {
+  // Parte de un vértice FUERA de grilla, como el que deja una cota escrita a
+  // mano: la horizontal tiene que seguir siendo horizontal.
+  const desde = { x: 9530, y: 9530 }
+  const p = imantarAngulo(desde, { x: 12480, y: 9560 }, { pasoLargoMm: 100 })
+  assert.ok(p)
+  assert.equal(p.y, desde.y, 'la horizontal debe conservar la Y del vértice anterior')
+  assert.ok(Math.abs(p.x - (desde.x + 3000)) < 1e-9, 'el largo debe pegarse a 3000')
+})
+
+test('un largo que se pegaría a cero deja el trazo como venía', () => {
+  const p = imantarAngulo(ORIGEN, { x: 10, y: 0 }, { pasoLargoMm: 1000 })
+  assert.deepEqual(p, { x: 10, y: 0 })
+})
+
+test('el imán angular nunca lanza y descarta el trazo de largo cero', () => {
+  assert.equal(imantarAngulo(null, null), null)
+  assert.equal(imantarAngulo(ORIGEN, ORIGEN), null)
+  assert.equal(imantarAngulo(ORIGEN, { x: 100, y: 0 }, { pasoGrados: 0 }), null)
+})
+
+test('el ortogonal manda sobre el angular: un rectángulo no puede salir torcido', () => {
+  // 43° se imantaría a 45, pero con el ortogonal puesto tiene que salir plano.
+  const p = aplicarDetentes(ORIGEN, { x: 1000, y: 932.5 }, {
+    imanGrilla: true,
+    ortogonal: true,
+    pasoMm: 100,
+  })
+  assert.equal(p.y, 0)
+})
+
+test('sin imán no hay detente alguno: el punto queda donde lo dejó el puntero', () => {
+  const crudo = { x: 1234.5, y: 987.6 }
+  assert.deepEqual(aplicarDetentes(ORIGEN, crudo, { imanGrilla: false, pasoMm: 100 }), crudo)
+})
+
+test('sin ángulo imantado el imán vuelve a pegar x e y por separado', () => {
+  // 22° no alcanza ningún detente: manda la grilla, como toda la vida.
+  const p = aplicarDetentes(ORIGEN, { x: 1010, y: 408 }, { imanGrilla: true, pasoMm: 100 })
+  assert.deepEqual(p, { x: 1000, y: 400 })
+})
+
+test('sin punto de partida —un vértice arrastrado— solo corre el imán a la grilla', () => {
+  const p = aplicarDetentes(null, { x: 1010, y: 408 }, { imanGrilla: true, pasoMm: 100 })
+  assert.deepEqual(p, { x: 1000, y: 400 })
+})
+
+test('aplicarDetentes tolera basura sin lanzar', () => {
+  assert.deepEqual(aplicarDetentes(null, null, null), { x: 0, y: 0 })
 })

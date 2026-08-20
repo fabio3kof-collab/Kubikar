@@ -455,6 +455,127 @@ export function restringirOrtogonal(desde, hasta) {
 }
 
 /**
+ * Paso del imán angular, en grados. Quince cubre los ángulos que aparecen en una
+ * planta —0, 30, 45, 60, 90— con un solo número y sin obligar a elegirlos de una
+ * lista.
+ */
+export const PASO_ANGULAR_GRADOS = 15
+
+/**
+ * Tolerancia del imán angular, en grados. Es un IMÁN y no una jaula: fuera de
+ * esta franja el trazo queda donde el puntero lo dejó, así que un muro a 22°
+ * sigue siendo dibujable con el imán puesto.
+ */
+export const TOLERANCIA_ANGULAR_GRADOS = 5
+
+/** Bajo este coseno o seno, la componente es cero: 90° tiene que dar 90°. */
+const RUIDO_TRIGONOMETRICO = 1e-12
+
+/**
+ * Imán angular del trazo. Si la dirección de `desde` a `hasta` cae dentro de la
+ * tolerancia de un múltiplo de `pasoGrados`, devuelve el punto girado sobre ese
+ * múltiplo exacto; si no, devuelve null y el llamador deja el punto como estaba.
+ *
+ * Con `pasoLargoMm` mayor que 0 el largo también se pega, pero SOBRE EL RAYO y
+ * no a la grilla absoluta. Es la única forma de que las dos ayudas no se peleen:
+ * pegar x e y por separado sacaría el punto del ángulo recién imantado, y con un
+ * vértice de partida fuera de grilla —una cota escrita a mano, por ejemplo— ni
+ * siquiera se podría trazar una horizontal exacta.
+ *
+ * @param {{x:number,y:number}} desde
+ * @param {{x:number,y:number}} hasta
+ * @param {{pasoGrados?:number, toleranciaGrados?:number, pasoLargoMm?:number}} [opciones]
+ * @returns {{x:number,y:number}|null}
+ */
+export function imantarAngulo(desde, hasta, opciones) {
+  const opts = opciones && typeof opciones === 'object' ? opciones : {}
+  const ax = num(desde && desde.x)
+  const ay = num(desde && desde.y)
+  const dx = num(hasta && hasta.x) - ax
+  const dy = num(hasta && hasta.y) - ay
+
+  const largo = Math.hypot(dx, dy)
+  if (!(largo > 0)) return null
+
+  const paso =
+    typeof opts.pasoGrados === 'number' && Number.isFinite(opts.pasoGrados)
+      ? opts.pasoGrados
+      : PASO_ANGULAR_GRADOS
+  if (!(paso > 0) || paso >= 360) return null
+  const tolerancia =
+    typeof opts.toleranciaGrados === 'number' && Number.isFinite(opts.toleranciaGrados)
+      ? opts.toleranciaGrados
+      : TOLERANCIA_ANGULAR_GRADOS
+  if (!(tolerancia > 0)) return null
+
+  const grados = (Math.atan2(dy, dx) * 180) / Math.PI
+  const detente = Math.round(grados / paso) * paso
+  if (Math.abs(grados - detente) > tolerancia) return null
+
+  const radianes = (detente * Math.PI) / 180
+  const cos = Math.cos(radianes)
+  const sen = Math.sin(radianes)
+
+  const pasoLargo = num(opts.pasoLargoMm)
+  let largoFinal = largo
+  if (pasoLargo > 0) {
+    const pegado = Math.round(largo / pasoLargo) * pasoLargo
+    // Un largo pegado a 0 colapsaría el vértice sobre el anterior. Antes que
+    // entregar un segmento de largo cero, se respeta el largo del puntero.
+    if (pegado > 0) largoFinal = pegado
+  }
+
+  return {
+    x: ax + (Math.abs(cos) < RUIDO_TRIGONOMETRICO ? 0 : cos) * largoFinal,
+    y: ay + (Math.abs(sen) < RUIDO_TRIGONOMETRICO ? 0 : sen) * largoFinal,
+  }
+}
+
+/**
+ * Los detentes del trazado, resueltos en un solo lugar y en el orden en que
+ * mandan. Lo llaman la vista previa del lienzo Y el reductor al confirmar: si
+ * cada uno armara su propia secuencia, el vértice saltaría al soltar el dedo.
+ *
+ * El orden no es arbitrario:
+ *
+ *   1. El ORTOGONAL manda sobre todo. Es un detente duro de 90°, elegido a
+ *      propósito para que un recinto rectangular no pueda salir torcido, y con
+ *      él puesto el imán angular sobra: 0 y 90 ya son múltiplos de 15.
+ *   2. El IMÁN ANGULAR va antes que el de grilla, porque decide la DIRECCIÓN.
+ *      Cuando prende, el largo se pega sobre el rayo y no a la grilla absoluta.
+ *   3. El IMÁN A LA GRILLA es el respaldo: sin dirección imantada, x e y se
+ *      pegan por separado, que es lo que este lienzo hizo siempre.
+ *
+ * Sin `desde` —un vértice arrastrado, que tiene dos vecinos y ningún punto de
+ * partida único— solo queda el imán a la grilla.
+ *
+ * @param {{x:number,y:number}|null} desde
+ * @param {{x:number,y:number}} punto
+ * @param {{imanGrilla?:boolean, ortogonal?:boolean, pasoMm?:number}} [opciones]
+ * @returns {{x:number,y:number}}
+ */
+export function aplicarDetentes(desde, punto, opciones) {
+  const opts = opciones && typeof opciones === 'object' ? opciones : {}
+  const pasoMm = num(opts.pasoMm)
+  let q = { x: num(punto && punto.x), y: num(punto && punto.y) }
+
+  if (opts.ortogonal && desde) {
+    if (opts.imanGrilla) q = { x: ajustarAGrilla(q.x, pasoMm), y: ajustarAGrilla(q.y, pasoMm) }
+    return restringirOrtogonal(desde, q)
+  }
+
+  if (opts.imanGrilla) {
+    if (desde) {
+      const imantado = imantarAngulo(desde, q, { pasoLargoMm: pasoMm })
+      if (imantado) return imantado
+    }
+    q = { x: ajustarAGrilla(q.x, pasoMm), y: ajustarAGrilla(q.y, pasoMm) }
+  }
+
+  return q
+}
+
+/**
  * Distancia euclidiana entre dos puntos, en mm.
  * @param {{x:number,y:number}} a
  * @param {{x:number,y:number}} b
