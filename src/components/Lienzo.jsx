@@ -49,7 +49,13 @@ import {
   restringirOrtogonal,
   segmentos as segmentosDe,
 } from '../core/geometry.js'
-import { formatearArea, formatearLongitud, obtenerUnidad } from '../core/units.js'
+import {
+  aMilimetros,
+  formatearArea,
+  formatearLongitud,
+  obtenerUnidad,
+  parsearNumeroCL,
+} from '../core/units.js'
 import { useApp } from '../state/AppState.jsx'
 import { moduloTrazaDe, trazadoDeRecinto } from '../state/useCalculo.js'
 import { Aviso, Cruz } from '../ui/index.js'
@@ -77,6 +83,14 @@ const RADIO_CAPTURA_PX = 16
 
 /** Tolerancia para cerrar el polígono haciendo clic sobre el primer vértice. */
 const TOL_CIERRE_PX = 16
+
+/** Cuánto sube la cota en curso sobre el puntero, para no quedar bajo la cruz. */
+const DESVIO_COTA_VIVA_PX = 22
+
+/** Caja del campo de cota a mano, en píxeles de pantalla. */
+const COTA_CAMPO_ANCHO_PX = 116
+const COTA_CAMPO_ALTO_PX = 30
+const COTA_CAMPO_DESVIO_PX = 12
 
 /** Aire alrededor de la figura al ajustar la vista. */
 const MARGEN_ENCUADRE_PX = 72
@@ -438,6 +452,77 @@ function CorchetesSegmento({ a, b }) {
   )
 }
 
+/**
+ * Campo de cota escrita a mano, anclado al extremo del trazo en curso.
+ *
+ * No reutiliza `CampoNumero` a propósito: aquel campo acota, formatea al salir
+ * y publica el valor al padre en cada tecla, que es lo que corresponde a un
+ * parámetro guardado. Esta cota no es un parámetro: es un gesto de dibujo que
+ * dura lo que dura escribirlo, se confirma con Enter y se abandona con Escape.
+ * Un campo con memoria propia acá dejaría cifras colgadas entre dos vértices.
+ *
+ * @param {{
+ *   x:number, y:number, ancho:number, alto:number, texto:string,
+ *   unidad:{id:string,label:string,nombre:string},
+ *   onTexto:(texto:string)=>void, onConfirmar:()=>void, onCancelar:()=>void
+ * }} props
+ */
+function CotaAMano({ x, y, ancho, alto, texto, unidad, onTexto, onConfirmar, onCancelar }) {
+  const refCampo = useRef(/** @type {HTMLInputElement|null} */ (null))
+
+  // El campo aparece porque alguien ya escribió una cifra: esa cifra tiene que
+  // caer adentro, no perderse mientras se busca dónde quedó el foco.
+  useEffect(() => {
+    const nodo = refCampo.current
+    if (!nodo) return
+    nodo.focus()
+    nodo.setSelectionRange(nodo.value.length, nodo.value.length)
+  }, [])
+
+  // Pegado al puntero, pero nunca fuera del recuadro: un campo cortado por el
+  // borde del lienzo no se puede leer ni escribir.
+  const izquierda = Math.min(
+    Math.max(x + COTA_CAMPO_DESVIO_PX, 0),
+    Math.max(ancho - COTA_CAMPO_ANCHO_PX, 0),
+  )
+  const arriba = Math.min(
+    Math.max(y - COTA_CAMPO_ALTO_PX - COTA_CAMPO_DESVIO_PX, 0),
+    Math.max(alto - COTA_CAMPO_ALTO_PX, 0),
+  )
+
+  return (
+    <div
+      className="absolute z-20 flex items-center gap-1 border border-rule-strong bg-block px-2 py-1"
+      style={{ left: `${izquierda}px`, top: `${arriba}px`, width: `${COTA_CAMPO_ANCHO_PX}px` }}
+    >
+      <input
+        ref={refCampo}
+        type="text"
+        inputMode="decimal"
+        autoComplete="off"
+        spellCheck={false}
+        aria-label={`Largo del trazo en curso, en ${unidad.nombre}. Enter lo marca, Escape lo abandona.`}
+        value={texto}
+        onChange={(evento) => onTexto(evento.target.value)}
+        onBlur={onCancelar}
+        onKeyDown={(evento) => {
+          if (evento.key === 'Enter') {
+            evento.preventDefault()
+            onConfirmar()
+            return
+          }
+          if (evento.key === 'Escape') {
+            evento.preventDefault()
+            onCancelar()
+          }
+        }}
+        className="kb-num min-w-0 flex-1 border-0 bg-transparent p-0 text-right text-sm text-ink outline-none"
+      />
+      <span className="kb-label shrink-0">{unidad.label}</span>
+    </div>
+  )
+}
+
 /* =============================================================================
    Lienzo
    ========================================================================== */
@@ -466,6 +551,16 @@ export function Lienzo({ className } = {}) {
   const [desplazando, setDesplazando] = useState(false)
   const [svgEnfocado, setSvgEnfocado] = useState(false)
   const [caret, setCaret] = useState(/** @type {{x:number,y:number}|null} */ (null))
+  // Cota escrita a mano. Guarda la DIRECCIÓN congelada —el vector unitario que
+  // el puntero ya definió— y el texto que se está escribiendo. Mientras existe,
+  // el largo lo manda el teclado y el puntero deja de mover la guía.
+  const [cotaManual, setCotaManual] = useState(
+    /** @type {{dirX:number,dirY:number,texto:string}|null} */ (null),
+  )
+  // Espejo de la cota para los manejadores de puntero, que se cierran sobre el
+  // render en que se crearon y leerían un valor viejo.
+  const cotaManualRef = useRef(/** @type {typeof cotaManual} */ (null))
+  cotaManualRef.current = cotaManual
   const [verticeEnfocado, setVerticeEnfocado] = useState(/** @type {string|null} */ (null))
   // Posición en curso del vértice que se está arrastrando. Vive acá y no en el
   // reductor: despachar en cada `pointermove` reconstruye el proyecto entero,
@@ -762,6 +857,14 @@ export function Lienzo({ className } = {}) {
     }
 
     if (evento.button !== 0 || !recinto) return
+
+    // Con una cota a medio escribir, el clic la abandona y no marca nada. Marcar
+    // en el punto del clic sería marcar donde el usuario NO estaba mirando: su
+    // atención estaba en la cifra, y el puntero quedó donde lo dejó.
+    if (cotaManualRef.current) {
+      setCotaManual(null)
+      return
+    }
 
     if (cerrado) {
       acciones.seleccionarVertice(null)
@@ -1113,7 +1216,29 @@ export function Lienzo({ className } = {}) {
   /* --- guía elástica -------------------------------------------------------- */
 
   const guia = useMemo(() => {
-    if (!dibujando || !ultimoVertice || !cursorMm || arrastreRef.current) return null
+    if (!dibujando || !ultimoVertice || arrastreRef.current) return null
+
+    // Con una cota escrita a mano el largo sale del teclado y la dirección está
+    // congelada: la guía tiene que seguir a la cifra, no al puntero. Un texto a
+    // medio escribir da largo cero y la guía se queda en el vértice, que es
+    // exactamente donde está el vértice que todavía no se marcó.
+    if (cotaManual) {
+      const escrito = parsearNumeroCL(cotaManual.texto)
+      const largoMm = escrito !== null && escrito > 0 ? aMilimetros(escrito, unidad.id) : 0
+      const destino = {
+        x: ultimoVertice.x + cotaManual.dirX * largoMm,
+        y: ultimoVertice.y + cotaManual.dirY * largoMm,
+      }
+      return {
+        desde: ultimoVertice,
+        hasta: destino,
+        largoMm,
+        medio: { x: (ultimoVertice.x + destino.x) / 2, y: (ultimoVertice.y + destino.y) / 2 },
+        manual: true,
+      }
+    }
+
+    if (!cursorMm) return null
     const destino = previsualizar(cursorMm, ultimoVertice)
     const largo = Math.hypot(destino.x - ultimoVertice.x, destino.y - ultimoVertice.y)
     if (largo <= 0) return null
@@ -1122,8 +1247,65 @@ export function Lienzo({ className } = {}) {
       hasta: destino,
       largoMm: largo,
       medio: { x: (ultimoVertice.x + destino.x) / 2, y: (ultimoVertice.y + destino.y) / 2 },
+      manual: false,
     }
-  }, [dibujando, ultimoVertice, cursorMm, previsualizar])
+  }, [dibujando, ultimoVertice, cursorMm, previsualizar, cotaManual, unidad.id])
+
+  /* --- cota escrita a mano --------------------------------------------------
+     El puntero define la DIRECCIÓN y el teclado el LARGO. Es como se toma una
+     medida en obra: el trazo va hacia allá y mide tanto. Sin esto había que
+     acertarle al milímetro con el mouse o marcar de más y corregir después en
+     la tabla de Geometría, que es mirar el número en vez de mirar la planta. */
+
+  /** Abre la cota a mano con la dirección que el puntero ya definió. */
+  const abrirCota = useCallback(
+    /** @param {string} semilla */
+    (semilla) => {
+      if (!guia || guia.manual || guia.largoMm <= 0) return false
+      const dx = guia.hasta.x - guia.desde.x
+      const dy = guia.hasta.y - guia.desde.y
+      const largo = Math.hypot(dx, dy)
+      if (!(largo > 0)) return false
+      setCotaManual({ dirX: dx / largo, dirY: dy / largo, texto: semilla })
+      return true
+    },
+    [guia],
+  )
+
+  const cerrarCota = useCallback(() => setCotaManual(null), [])
+
+  /** Marca el vértice al largo escrito y deja la cota lista para el siguiente. */
+  const confirmarCota = useCallback(() => {
+    if (!cotaManual || !ultimoVertice) return
+    const escrito = parsearNumeroCL(cotaManual.texto)
+    if (escrito === null || !(escrito > 0)) return
+    const largoMm = aMilimetros(escrito, unidad.id)
+    // El imán NO se aplica: quien escribe 247 pide 247, no el múltiplo de
+    // grilla más cercano. La grilla es ayuda del puntero, no de la cifra.
+    acciones.agregarVertice(
+      ultimoVertice.x + cotaManual.dirX * largoMm,
+      ultimoVertice.y + cotaManual.dirY * largoMm,
+    )
+    setCotaManual(null)
+    setCursorMm(null)
+    setCaret(null)
+  }, [cotaManual, ultimoVertice, unidad.id, acciones])
+
+  // Basta con escribir una cifra: no hay que ir a buscar un campo. Se escucha en
+  // la ventana y no en el <svg> porque durante el dibujo el foco puede estar en
+  // el lienzo o en ninguna parte, y en los dos casos el puntero ya está encima.
+  useEffect(() => {
+    /** @param {KeyboardEvent} evento */
+    function alTeclear(evento) {
+      if (evento.ctrlKey || evento.metaKey || evento.altKey) return
+      if (esCampoEditable(evento.target)) return
+      if (!sobreRef.current && document.activeElement !== svgRef.current) return
+      if (!/^[0-9]$/.test(evento.key)) return
+      if (abrirCota(evento.key)) evento.preventDefault()
+    }
+    window.addEventListener('keydown', alTeclear)
+    return () => window.removeEventListener('keydown', alTeclear)
+  }, [abrirCota])
 
   /* --- render -------------------------------------------------------------- */
 
@@ -1393,10 +1575,17 @@ export function Lienzo({ className } = {}) {
               />
             ) : null}
 
-            {guia ? (
+            {/* LA COTA EN CURSO VIAJA CON EL PUNTERO, no con el medio del
+              trazo. Colgada del medio, acercarse a un vértice para marcarlo
+              fino mandaba la cifra fuera del recuadro: se estaba midiendo a
+              ciegas justo cuando más falta hacía leer. Va sobre el extremo que
+              se está moviendo, un poco más arriba para no quedar bajo la cruz.
+              Con la cota escrita a mano el campo ocupa ese lugar y el rótulo
+              sobra: dos cifras del mismo largo, una encima de la otra. */}
+            {guia && !guia.manual ? (
               <RotuloLienzo
-                x={aPantalla(guia.medio).x}
-                y={aPantalla(guia.medio).y}
+                x={aPantalla(guia.hasta).x}
+                y={aPantalla(guia.hasta).y - DESVIO_COTA_VIVA_PX}
                 tono="guia"
                 texto={formatearLongitud(guia.largoMm, unidad.id, { conUnidad: true })}
               />
@@ -1520,6 +1709,26 @@ export function Lienzo({ className } = {}) {
           </g>
         </svg>
 
+        {/* CAMPO DE COTA A MANO. Va en HTML sobre el lienzo y no dentro del
+          <svg>: un campo de texto es interfaz, y la interfaz de esta edición
+          se compone con las mismas cajas que el resto de la aplicación. Se
+          ancla al extremo que se está marcando y se mantiene dentro del
+          recuadro, porque un campo que se sale del lienzo no se puede escribir.
+          Con el polígono cerrado no existe: no hay vértice siguiente. */}
+        {cotaManual && guia ? (
+          <CotaAMano
+            x={aPantalla(guia.hasta).x}
+            y={aPantalla(guia.hasta).y}
+            ancho={tamano.ancho}
+            alto={tamano.alto}
+            texto={cotaManual.texto}
+            unidad={unidad}
+            onTexto={(texto) => setCotaManual((previa) => (previa ? { ...previa, texto } : previa))}
+            onConfirmar={confirmarCota}
+            onCancelar={cerrarCota}
+          />
+        ) : null}
+
         {/* Estado vacío: la instrucción va sobre el papel, sin robarle el clic. */}
         {recinto && vertices.length === 0 ? (
           <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center p-6">
@@ -1557,7 +1766,9 @@ export function Lienzo({ className } = {}) {
         Lienzo de planta con grilla en {unidad.nombre}. Con el lienzo enfocado, las flechas mueven
         el cursor de teclado un paso de grilla, con Mayúsculas se mueve cinco pasos, la tecla A
         marca un vértice en ese punto, la tecla F ajusta la vista a la figura, más y menos acercan y
-        alejan, y Enter cierra el polígono. Con el tabulador se recorren los vértices ya marcados:
+        alejan, y Enter cierra el polígono. Con un trazo en curso, escribir una cifra abre el campo
+        de largo: la dirección queda fijada en la que marca el puntero, Enter marca el vértice a esa
+        distancia exacta y Escape abandona la cota. Con el tabulador se recorren los vértices ya marcados:
         las flechas mueven el vértice enfocado y Suprimir lo elimina. La pestaña Geometría ofrece la
         misma edición en una tabla, con las coordenadas de cada vértice y el largo de cada segmento
         escritos a mano.

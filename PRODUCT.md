@@ -39,6 +39,7 @@ Flujo de trabajo confirmado:
 1. El usuario crea un proyecto y le da nombre.
 2. Agrega un recinto y lo nombra (por ejemplo "Living", "Dormitorio 1").
 3. Dibuja el polígono del recinto en el lienzo de grilla. Cada clic agrega un vértice y traza un segmento desde el vértice anterior, como una polilínea. El polígono se cierra al hacer clic sobre el primer vértice o con el botón "Cerrar polígono". Mientras la figura está abierta no se puede calcular.
+   - El trazo en curso se puede acotar a mano, que es como se mide en obra: el puntero define la **dirección** y el teclado el **largo**. Con un trazo empezado, escribir una cifra abre el campo de cota junto al puntero, la dirección queda congelada en la que marca el trazo, Enter marca el vértice a esa distancia exacta —sin imán de grilla: quien escribe 247 pide 247— y Escape abandona la cota. La cifra en curso viaja pegada al puntero, no colgada del medio del trazo, para que acercar el zoom no la mande fuera del recuadro justo cuando hay que leerla.
 4. Ajusta la geometría con precisión: selecciona un vértice y edita sus coordenadas numéricamente, o selecciona un segmento y escribe su longitud exacta.
 5. Elige el módulo de cálculo y configura sus parámetros y los materiales que va a usar desde la biblioteca de materiales.
 6. Revisa el listado de materiales con cantidades y el consolidado del proyecto completo.
