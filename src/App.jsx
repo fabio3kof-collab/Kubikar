@@ -353,8 +353,19 @@ export function App() {
     // que el papel no sea la misma pantalla restilada está escrita ahí.
     <>
       {/* La altura la fija el shell, no el documento: el lienzo se mide contra
-          su pista y ninguna zona puede empujar el largo de la página. */}
-      <div className="kb-app flex h-[100dvh] w-full flex-col overflow-hidden bg-paper text-ink">
+          su pista y ninguna zona puede empujar el largo de la página.
+
+          `relative` NO es decoración: es lo que hace del shell el bloque
+          contenedor de todo lo que se posiciona en absoluto adentro. Sin él,
+          un `sr-only` —que es `position:absolute`— resuelve contra el bloque
+          contenedor inicial, se salta TODOS los `overflow-hidden` de las zonas
+          y estira la página hasta donde caiga su posición estática. Con el
+          panel de parámetros del módulo desplazado eso daba un documento de
+          2184px en una ventana de 900: la rueda dejaba de mover el panel y se
+          llevaba la aplicación entera hacia un papel vacío. Nada de eso se ve
+          en el árbol —cada zona seguía midiendo lo que debía—, y por eso el
+          arreglo va acá y no en cada texto para lector de pantalla. */}
+      <div className="kb-app relative flex h-[100dvh] w-full flex-col overflow-hidden bg-paper text-ink">
         <BarraSuperior />
         <AvisoAlmacenamiento />
         <main className="flex min-h-0 flex-1 flex-col overflow-hidden">{cuerpo()}</main>
