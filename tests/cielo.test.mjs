@@ -1,8 +1,13 @@
 /* =============================================================================
    Kubikar · pruebas del módulo Cielo
    -----------------------------------------------------------------------------
-   Fijan que la cubicación sale de la planta y no de una división del área, y que
-   el número que se compra coincide con la retícula que el lienzo dibuja.
+   Fijan que la PERFILERÍA sale de la planta y no de una división del área, y que
+   los metros que se compran coinciden con los ejes que el lienzo dibuja.
+
+   La PLANCHA va al revés y también se fija acá: se cubica por los metros
+   cuadrados que cubre, porque contar posiciones de la retícula cobraba entera una
+   que entraba cinco centímetros. La retícula se sigue dibujando como replanteo,
+   así que dibujo y cantidad divergen a propósito: eso también se prueba.
 
    Recinto de referencia: 4,00 × 2,60 m, perfiles cada 40 cm corriendo en X,
    omega de 3 m y plancha de 1,20 × 2,40 m. Es el caso que en obra quedaba corto.
@@ -149,23 +154,42 @@ test('el traslapo de empalme aparece en la nota solo si es mayor que 0', () => {
    Planchas
    -------------------------------------------------------------------------- */
 
-test('la plancha se cubica contando posiciones de la retícula', () => {
+test('la plancha se cubica por los metros cuadrados que cubre', () => {
   const plancha = linea(calcular(contextoRectangulo(4000, 2600)), 'cielo.plancha')
-  // Retícula de 4 columnas × 2 filas; las 8 posiciones tocan la planta.
-  assert.equal(plancha.cantidadTeorica, 8)
-  assert.equal(plancha.cantidadFinal, 9)
-  assert.match(plancha.nota, /4 × 2/)
+  // 10,40 m² de recinto ÷ 2,88 m² útiles por plancha = 3,61 un; con 8% de
+  // desperdicio son 3,90 y se compran 4. Contando posiciones eran 9.
+  assert.equal(plancha.cantidadTeorica, 10.4 / 2.88)
+  assert.equal(plancha.cantidadFinal, 4)
+  assert.match(plancha.nota, /2,88 m² útiles por plancha/)
 })
 
-test('el conteo de planchas es exactamente lo que dibuja el despiece', () => {
+test('el traslapo de la plancha resta área útil y sube la cantidad', () => {
+  const conTraslapo = [
+    ...BIBLIOTECA.filter((m) => m.id !== PLANCHA.id),
+    { ...PLANCHA, traslapoMm: 200 },
+  ]
+  const ctx = contextoRectangulo(4000, 2600)
+  const plancha = linea(calcular({ ...ctx, biblioteca: conTraslapo }), 'cielo.plancha')
+  // 1,00 × 2,20 = 2,20 m² útiles en vez de 2,88.
+  assert.equal(plancha.cantidadTeorica, 10.4 / 2.2)
+  assert.match(plancha.nota, /2,20 m² útiles por plancha/)
+})
+
+test('la retícula que se dibuja es replanteo, no la cantidad que se compra', () => {
   const ctx = contextoRectangulo(4000, 2600)
   const plancha = linea(calcular(ctx), 'cielo.plancha')
   const capa = trazar(ctx).find((c) => c.clave === 'cielo.plancha')
   assert.ok(capa, 'falta la capa de planchas')
-  assert.equal(capa.rectangulos.length, plancha.cantidadTeorica)
+  // 8 posiciones dibujadas contra 4 planchas compradas: la diferencia es el
+  // recorte que en obra se reaprovecha, y es a propósito.
+  assert.equal(capa.rectangulos.length, 8)
+  assert.ok(
+    capa.rectangulos.length > plancha.cantidadFinal,
+    'el replanteo debería mostrar más posiciones que planchas compradas',
+  )
 })
 
-test('las posiciones que no tocan la planta no se cuentan ni se dibujan', () => {
+test('el hueco de la planta no se cubica ni se dibuja', () => {
   // U con la boca hacia arriba: el hueco de 3,40 × 2,50 m no lleva cielo, y es
   // lo bastante grande para tragarse una posición entera de la retícula. Sus
   // bordes no caen sobre la grilla a propósito: un hueco que coincide justo con
@@ -206,11 +230,13 @@ test('las posiciones que no tocan la planta no se cuentan ni se dibujan', () => 
   }
 
   const plancha = linea(calcular(ctx), 'cielo.plancha')
-  // Retícula de 5 × 2 = 10 posiciones; la tercera de la fila de arriba cae
-  // entera dentro del hueco y queda fuera del conteo.
-  assert.equal(plancha.cantidadTeorica, 9)
-  assert.match(plancha.nota, /9 de 10 posiciones/)
+  // 6,00 × 4,80 menos el hueco de 3,40 × 2,50 son 20,30 m² netos: el área de
+  // Gauss ya descuenta el hueco, así que la cubicación no lo paga.
+  assert.equal(plancha.cantidadTeorica, 20.3 / 2.88)
+  assert.equal(plancha.cantidadFinal, 8)
 
+  // Retícula de 5 × 2 = 10 posiciones; la tercera de la fila de arriba cae
+  // entera dentro del hueco y no se dibuja.
   const capa = trazar(ctx).find((c) => c.clave === 'cielo.plancha')
   assert.equal(capa.rectangulos.length, 9)
 })

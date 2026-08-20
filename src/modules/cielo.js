@@ -4,11 +4,20 @@
    Cubicación de cielo falso de acero galvanizado: planchas, perfilería omega,
    perfil perimetral y accesorios.
 
-   La cantidad sale de la PLANTA, no de una división del área: los ejes se
-   recortan contra el polígono para obtener corridas de largo real, el perimetral
-   usa los lados del polígono y la plancha cuenta las posiciones de la retícula
-   que tocan el recinto. Dividir el área suponía que cada barra rinde entera, y
-   con corridas de 2,6 m sobre barras de 3 m eso regalaba 40 cm por barra.
+   La PERFILERÍA sale de la planta, no de una división del área: los ejes se
+   recortan contra el polígono para obtener corridas de largo real y el
+   perimetral usa los lados del polígono. Dividir el área suponía que cada barra
+   rinde entera, y con corridas de 2,6 m sobre barras de 3 m eso regalaba 40 cm
+   por barra.
+
+   La PLANCHA es la excepción y es deliberada: se cubica por los metros cuadrados
+   que cubre. Contar las posiciones de la retícula que tocan el recinto cobraba
+   entera una posición que entraba cinco centímetros, y eso sobredimensionaba la
+   compra. En obra ese rendimiento se recupera cortando: el recorte de una
+   posición se usa en la siguiente. Lo que el corte no alcanza a recuperar lo
+   cubre el desperdicio, que por eso arranca en 10% y no en 5%. La retícula se
+   sigue dibujando, pero como replanteo: es la guía de instalación, ya no la
+   cuenta.
 
    Los tornillos siguen la misma regla. Son DOS, porque en obra son dos: el
    drywall punta fina se cuenta sobre los metros lineales de perfilería, que es
@@ -32,7 +41,6 @@ import { formatearCantidad, formatearNumero, parsearNumeroCL } from '../core/uni
 import {
   esAutoIntersectante,
   recortarLineaEnPoligono,
-  rectanguloDentroDePoligono,
   rectanguloTocaPoligono,
   segmentos,
 } from '../core/geometry.js'
@@ -69,15 +77,20 @@ export const esquema = [
     tipo: 'porcentaje',
     etiqueta: 'Desperdicio de plancha',
     desperdicioDe: 'planchaId',
+    // Respaldo para cuando todavía no hay plancha elegida: sin esto el parámetro
+    // nacería en 0, que para una cubicación por área es la cifra equivocada.
+    porDefecto: 10,
     min: 0,
     max: 100,
     paso: 1,
     sufijo: '%',
     grupo: 'Planchas',
-    // Se dice qué cubre y qué no, porque hasta esta versión el porcentaje era
-    // además el único lugar donde se podía compensar el corte, y quien lo tenía
-    // inflado por esa razón necesita saber que ahora el corte se cuenta aparte.
-    ayuda: 'Cubre rotura y error de corte. El recorte de la retícula ya está contado aparte.',
+    // La plancha se cubica por área, así que este porcentaje SÍ carga con el
+    // corte: es el único lugar donde se compensa lo que se pierde ajustando
+    // contra los bordes del recinto. Por eso el material lo trae en 10% y no en
+    // el 5% del resto.
+    ayuda:
+      'Cubre el corte contra los bordes del recinto, la rotura y el error de medida. La cantidad sale de los m² que cubre la plancha, no de la retícula.',
   },
   {
     clave: 'perfilId',
@@ -428,17 +441,23 @@ function desperdicioDe(parametros, clave) {
 /* -----------------------------------------------------------------------------
    Reparto sobre la planta
    -----------------------------------------------------------------------------
-   La única lectura de la geometría del módulo. `calcular` saca de acá sus
-   cantidades y `trazar` saca de acá sus rectángulos y sus líneas: por eso el
-   número que se compra y el despiece que se dibuja no pueden divergir.
+   La única lectura de la geometría del módulo. `calcular` saca de acá las
+   corridas de perfilería y `trazar` saca de acá sus rectángulos y sus líneas:
+   por eso los metros de perfil que se compran y los ejes que se dibujan no
+   pueden divergir. La retícula de planchas sale del mismo lugar, pero solo para
+   dibujarse: su cantidad se cubica por área.
 
    No decide tinta, grosor ni presentación. Devuelve milímetros de mundo.
    -------------------------------------------------------------------------- */
 
 /**
- * Topes del CÁLCULO, distintos de los del dibujo. Pasado el tope de dibujo la
- * capa no se pinta porque sería una mancha; pasado el tope de cálculo no se
- * entrega un número malo, se declara el problema y la línea queda fuera.
+ * Topes del REPARTO, distintos de los del dibujo. Pasado el tope de dibujo la
+ * capa no se pinta porque sería una mancha; pasado el tope de reparto ni siquiera
+ * se arma la lista, porque recorrerla costaría más que el dato que entrega.
+ *
+ * El de corridas es además un tope de cálculo: sin corridas no hay metros de
+ * perfil que cubicar y la línea queda fuera con su aviso. El de posiciones ya no
+ * lo es: la plancha se cubica por área, así que pasarse solo apaga el replanteo.
  */
 const MAX_CORRIDAS_CALCULO = 20_000
 const MAX_POSICIONES_CALCULO = 50_000
@@ -548,7 +567,6 @@ function repartoDelRecinto(ctx) {
         total,
         excedido: total > MAX_POSICIONES_CALCULO,
         posiciones: [],
-        completas: 0,
       }
 
       if (columnas > 0 && filas > 0 && !reparto.plancha.excedido) {
@@ -562,7 +580,6 @@ function repartoDelRecinto(ctx) {
             }
             if (!rectanguloTocaPoligono(vertices, rect)) continue
             reparto.plancha.posiciones.push(rect)
-            if (rectanguloDentroDePoligono(vertices, rect)) reparto.plancha.completas += 1
           }
         }
       }
@@ -1034,9 +1051,11 @@ export function calcular(ctx) {
       ? `${f2(areaM2)} m² − ${f2(descuentoM2)} m² de vanos = ${f2(areaNeta)} m² netos`
       : `${f2(areaNeta)} m² netos`
 
-  // El reparto es la lectura de la planta y lo comparte `trazar`: cualquier
-  // diferencia entre lo que se compra y lo que se dibuja sería un error en un
-  // solo lugar, no en dos cuentas paralelas.
+  // El reparto es la lectura de la planta y lo comparte `trazar`: las corridas
+  // de perfilería que se compran y los ejes que se dibujan son el mismo dato, así
+  // que una diferencia sería un error en un solo lugar y no en dos cuentas
+  // paralelas. La retícula de planchas viaja en el mismo reparto, pero solo para
+  // el dibujo: su cantidad se cubica por área más abajo.
   const reparto = repartoDelRecinto(contexto)
 
   // --- Planchas -------------------------------------------------------------
@@ -1046,45 +1065,24 @@ export function calcular(ctx) {
       nivel: 'error',
       mensaje: 'Falta seleccionar el material de Material de plancha.',
     })
-  } else if (!reparto || !reparto.plancha) {
-    avisos.push({
-      nivel: 'error',
-      mensaje: `Las medidas de la plancha ${plancha.nombre} no dan un área útil mayor que 0. Revisa ancho, largo y traslapo en la Biblioteca.`,
-    })
-  } else if (reparto.plancha.excedido) {
-    avisos.push({
-      nivel: 'error',
-      mensaje: `La retícula de ${plancha.nombre} pide ${reparto.plancha.total} posiciones sobre esta planta y el tope de cálculo es ${MAX_POSICIONES_CALCULO}. Usa una plancha mayor o divide el recinto para cubicarla.`,
-    })
   } else {
-    const { columnas, filas, total, posiciones, completas } = reparto.plancha
-    const tocan = posiciones.length
+    // El traslapo se descuenta de las dos medidas: lo que la plancha tapa de
+    // verdad es su cara menos lo que se monta sobre la vecina.
+    const traslapoMm = numero(plancha.traslapoMm, 0)
+    const anchoUtilMm = numero(plancha.anchoMm, 0) - traslapoMm
+    const largoUtilMm = numero(plancha.largoMm, 0) - traslapoMm
+    const areaUtilM2 = (anchoUtilMm * largoUtilMm) / MM2_POR_M2
 
-    if (!(tocan > 0)) {
+    if (!(anchoUtilMm > 0) || !(largoUtilMm > 0) || !(areaUtilM2 > 0)) {
       avisos.push({
         nivel: 'error',
-        mensaje: `Ninguna posición de ${plancha.nombre} cae sobre la planta. Revisa el polígono del recinto.`,
+        mensaje: `Las medidas de la plancha ${plancha.nombre} no dan un área útil mayor que 0. Revisa ancho, largo y traslapo en la Biblioteca.`,
       })
     } else {
-      if (tocan === 1) {
-        avisos.push({
-          nivel: 'info',
-          mensaje:
-            'La plancha cubre el recinto completo. Se cubica 1 unidad; en terreno habrá corte.',
-        })
-      }
-      const parciales = tocan - completas
       const pct = desperdicioDe(parametros, 'planchaDesperdicio')
-      const teorica = tocan
+      const teorica = areaNeta / areaUtilM2
       const conDesperdicio = teorica * (1 + pct / 100)
       const final = techo(conDesperdicio)
-      // Las parciales se declaran porque son la medida de cuánto se corta: el
-      // conteo por posiciones no reaprovecha el recorte de una en otra.
-      const tramoParciales = parciales > 0 ? ` · ${parciales} ${parciales === 1 ? 'parcial' : 'parciales'}` : ''
-      const tramoConteo =
-        tocan === total
-          ? `${tocan} ${tocan === 1 ? 'posición' : 'posiciones'}`
-          : `${tocan} de ${total} posiciones tocan el recinto`
       lineas.push(
         crearLinea({
           clave: 'cielo.plancha',
@@ -1094,7 +1092,7 @@ export function calcular(ctx) {
           cantidadTeorica: teorica,
           desperdicioPct: pct,
           cantidadFinal: final,
-          nota: `retícula de ${columnas} × ${filas} sobre la planta: ${tramoConteo}${tramoParciales}${tramoDesperdicio(pct, conDesperdicio)} → ${final} un`,
+          nota: `${memoriaNeta} ÷ ${f2(areaUtilM2)} m² útiles por plancha = ${f2(teorica)} un${tramoDesperdicio(pct, conDesperdicio)} → ${final} un`,
           precioUnitario: plancha.precioUnitario,
         }),
       )
@@ -1281,8 +1279,9 @@ export function trazar(ctx) {
   if (!reparto) return capas
 
   // --- Retícula de planchas -------------------------------------------------
-  // Solo las posiciones que tocan la planta: son las mismas que se cuentan, y
-  // las que caían fuera igual las borraba el recorte del lienzo.
+  // Replanteo, no cuenta: la cantidad sale del área. Solo se pintan las
+  // posiciones que tocan la planta, porque las de afuera igual las borraba el
+  // recorte del lienzo.
   const plancha = reparto.plancha
   if (
     plancha &&

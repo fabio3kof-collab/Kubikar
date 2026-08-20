@@ -27,7 +27,7 @@ export const DEFINICIONES_SEMILLA = [
     largoMm: 3000,
     espesorMm: 15,
     traslapoMm: 0,
-    desperdicioPct: 5,
+    desperdicioPct: 10,
   },
   {
     tipo: 'plancha',
@@ -36,7 +36,7 @@ export const DEFINICIONES_SEMILLA = [
     largoMm: 2400,
     espesorMm: 15,
     traslapoMm: 0,
-    desperdicioPct: 5,
+    desperdicioPct: 10,
   },
   {
     tipo: 'plancha',
@@ -45,7 +45,7 @@ export const DEFINICIONES_SEMILLA = [
     largoMm: 2400,
     espesorMm: 15,
     traslapoMm: 0,
-    desperdicioPct: 5,
+    desperdicioPct: 10,
   },
   {
     tipo: 'barra',

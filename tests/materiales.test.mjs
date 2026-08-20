@@ -1,17 +1,27 @@
 /* =============================================================================
-   Kubikar · pruebas del uso de una pieza
+   Kubikar · pruebas de la biblioteca de materiales
    -----------------------------------------------------------------------------
    El uso de una pieza decide en qué parámetros se ofrece el material. Lo que se
    fija acá es lo que le pasa a una biblioteca guardada ANTES de que el campo
    existiera: tiene que entrar completa y seguir apareciendo en todos los
    selectores. Si esto se rompe, al usuario se le vacían los desplegables sin
    explicación y su proyecto queda sin materiales.
+
+   Se fija además el desperdicio con que nace cada tipo: la plancha en 10% porque
+   es la única que se cubica por área y su porcentaje carga con el corte contra
+   los bordes del recinto.
    ========================================================================== */
 
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { USOS_PIEZA, USO_PIEZA_POR_DEFECTO, normalizarMaterial } from '../src/data/schema.js'
+import {
+  USOS_PIEZA,
+  USO_PIEZA_POR_DEFECTO,
+  normalizarMaterial,
+  nuevoMaterial,
+} from '../src/data/schema.js'
+import { materialesSemilla } from '../src/data/seed.js'
 import { completarParametros, materialesDe } from '../src/modules/registry.js'
 import { cielo } from '../src/modules/cielo.js'
 
@@ -44,6 +54,30 @@ test('el antiguo campo consumo se ignora sin romper la lectura del archivo', () 
   const material = normalizarMaterial({ tipo: 'pieza', nombre: 'Tornillo', consumo: 'por_ml' })
   assert.equal(material.uso, USO_PIEZA_POR_DEFECTO)
   assert.equal(material.consumo, undefined)
+})
+
+/* -----------------------------------------------------------------------------
+   Desperdicio por defecto
+   -------------------------------------------------------------------------- */
+
+test('una plancha nueva nace con 10% de desperdicio; la barra con 5 y la pieza con 0', () => {
+  assert.equal(nuevoMaterial('plancha').desperdicioPct, 10)
+  assert.equal(nuevoMaterial('barra').desperdicioPct, 5)
+  assert.equal(nuevoMaterial('pieza').desperdicioPct, 0)
+})
+
+test('las planchas precargadas traen el 10%', () => {
+  const planchas = materialesSemilla().filter((m) => m.tipo === 'plancha')
+  assert.ok(planchas.length > 0, 'la semilla debería traer planchas')
+  for (const plancha of planchas) assert.equal(plancha.desperdicioPct, 10)
+})
+
+test('un material guardado conserva su desperdicio: el 10% es respaldo, no una pisada', () => {
+  assert.equal(normalizarMaterial({ tipo: 'plancha', nombre: 'Vieja' }).desperdicioPct, 10)
+  assert.equal(
+    normalizarMaterial({ tipo: 'plancha', nombre: 'Vieja', desperdicioPct: 5 }).desperdicioPct,
+    5,
+  )
 })
 
 /* -----------------------------------------------------------------------------

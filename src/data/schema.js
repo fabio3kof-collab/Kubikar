@@ -71,6 +71,23 @@ export const USO_PIEZA_POR_DEFECTO = 'general'
 export const RETAZO_MINIMO_POR_DEFECTO_MM = 500
 
 /**
+ * Desperdicio con que nace un material, por tipo.
+ *
+ * La plancha va en 10 y no en 5 porque es la única que se cubica por área: su
+ * porcentaje carga además con el corte contra los bordes del recinto, que en las
+ * barras se cuenta aparte, pieza por pieza, en el reparto. La pieza va en 0
+ * porque un tornillo no se corta ni se rompe al instalarse.
+ *
+ * @param {string} tipo
+ * @returns {number}
+ */
+export function desperdicioPorDefecto(tipo) {
+  if (tipo === 'pieza') return 0
+  if (tipo === 'plancha') return 10
+  return 5
+}
+
+/**
  * Módulo de cálculo asignado a un recinto nuevo.
  * La capa de datos no importa `src/modules/*` para no acoplarse al registro:
  * guarda el id como texto y el registro de módulos lo resuelve al calcular.
@@ -354,7 +371,7 @@ export function nuevoMaterial(tipo = 'plancha') {
     uso: t === 'pieza' ? USO_PIEZA_POR_DEFECTO : null,
 
     // comunes
-    desperdicioPct: t === 'pieza' ? 0 : 5,
+    desperdicioPct: desperdicioPorDefecto(t),
     precioUnitario: null,
 
     // previstos para Karbec · van vacíos en esta versión
@@ -383,7 +400,7 @@ export function normalizarMaterial(obj) {
   const tipo = TIPOS_MATERIAL.includes(fuente.tipo) ? fuente.tipo : 'plancha'
   const ahora = ahoraISO()
 
-  const desperdicio = numeroO(fuente.desperdicioPct, tipo === 'pieza' ? 0 : 5)
+  const desperdicio = numeroO(fuente.desperdicioPct, desperdicioPorDefecto(tipo))
 
   return {
     id: typeof fuente.id === 'string' && fuente.id ? fuente.id : nuevoId('mat'),
