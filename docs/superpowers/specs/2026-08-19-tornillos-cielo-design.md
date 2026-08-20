@@ -134,7 +134,7 @@ el grupo Accesorios:
 ```
 Tornillos de plancha             (booleano, on)
   ├─ Material                    (pieza · materialUso: 'fijacion_plancha')
-  └─ Separación entre tornillos  20 cm   [15 · 20 · 25]
+  └─ Separación entre tornillos  20 cm   [15 · 20 · 25 · 30 · 40]
 
 Tornillos metal-metal            (booleano, on)
   ├─ Material                    (pieza · materialUso: 'fijacion_metal')

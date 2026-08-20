@@ -191,7 +191,11 @@ export const esquema = [
     tipo: 'numero',
     etiqueta: 'Separación entre tornillos',
     porDefecto: 20,
-    sugeridos: [15, 20, 25],
+    // 15 y 20 son el paso de plancha; 25, 30 y 40 son el paso de perfil, que es
+    // lo que se usa cuando el tornillo va sobre el omega y no sobre la junta.
+    // Sin 30 ni 40 en la fila, esos dos casos —los más corrientes en cielo con
+    // ejes a 40— obligaban a escribir la cifra a mano en cada recinto.
+    sugeridos: [15, 20, 25, 30, 40],
     min: 1,
     paso: 1,
     sufijo: 'cm',
