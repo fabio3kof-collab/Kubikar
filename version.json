@@ -1,6 +1,6 @@
 {
-  "version": "0.4.0",
+  "version": "0.5.0",
   "fecha": "2026-08-31",
-  "notas": "El escalon de compra de los tornillos pasa a la lista de compra: el recinto muestra la cantidad exacta y el total sube una sola vez",
+  "notas": "La hoja impresa del consolidado deja de llevar precios y trae casilla para marcar y espacio para anotar proveedor",
   "url": "https://raw.githubusercontent.com/fabio3kof-collab/Kubikar/main/Kubikar.html"
 }
