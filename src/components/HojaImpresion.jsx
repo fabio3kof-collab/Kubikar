@@ -16,11 +16,19 @@
    2. No hay controles. Ningún botón, ningún desplegable, ninguna fila elegible:
       todo lo que en pantalla se abre, en papel ya está abierto.
 
+   Y una tercera, propia del Consolidado: EN PAPEL NO VA EL DINERO. La hoja se le
+   entrega al encargado de adquisiciones, que necesita saber qué comprar y cuánto,
+   no cuánto costaba en la biblioteca el día que se cubicó. Un precio impreso
+   envejece en el bolsillo y se discute en el mesón contra la cotización real, así
+   que el espacio que ocupaba se devuelve al comprador en forma de casilla para
+   marcar y columna en blanco para anotar proveedor y precio. El presupuesto sigue
+   completo en pantalla, que es donde se presupuesta.
+
    El resto del registro es el mismo: la cifra que se compra va en 17px con
    cifras tabulares, la cabecera de tabla en azul marino, el filete de un píxel.
    ============================================================================ */
 
-import { formatearArea, formatearCLP, formatearLineal } from '../core/units.js'
+import { formatearArea, formatearLineal } from '../core/units.js'
 import { useApp } from '../state/AppState.jsx'
 import { useCalculo } from '../state/useCalculo.js'
 import { useConsolidado } from '../state/useConsolidado.js'
@@ -66,15 +74,27 @@ function CabeceraHoja({ proyecto, titulo, detalle }) {
 }
 
 /**
- * Cifra de dinero, o la raya del dato ausente. En papel no hay `title` que
- * consultar, así que la razón de la ausencia va una sola vez, en la nota al pie.
- * @param {{valor:number|null}} props
+ * Casilla de verificación impresa: el cuadrado que el comprador marca a lápiz
+ * cuando la línea ya está comprada o recibida.
+ *
+ * Es tinta, no un control: la hoja no tiene estado que guardar y el papel no
+ * responde a un clic. Por eso es el cuadrado del vocabulario impreso del sistema
+ * —filete de control de un píxel, cero radio— y no una casilla de formulario.
  */
-function Peso({ valor }) {
-  if (typeof valor !== 'number' || !Number.isFinite(valor)) {
-    return <span className="text-ink-3">—</span>
-  }
-  return <>{formatearCLP(valor)}</>
+function Casilla() {
+  return <span className="mt-1 block h-3 w-3 border border-rule-strong" />
+}
+
+/**
+ * Renglón para escribir a mano. Va donde Kubikar no sabe el dato y no debe
+ * inventarlo: el proveedor que atendió y el precio que de verdad cotizó.
+ *
+ * No trae separación propia. Quien lo pone decide su altura de escritura, porque
+ * en la celda el renglón se apoya abajo —contra el pie de la fila, que es donde
+ * cae la mano— y en el bloque de recepción cuelga de su rótulo.
+ */
+function Renglon() {
+  return <span className="block border-b border-rule-strong" />
 }
 
 /* -----------------------------------------------------------------------------
@@ -87,10 +107,8 @@ function Peso({ valor }) {
  */
 function HojaConsolidado({ proyecto, biblioteca }) {
   const consolidado = useConsolidado(proyecto, biblioteca)
-  const { grupos, omitidos, incluidos, totalRecintos, totalConPrecio, lineasSinPrecio } =
-    consolidado
+  const { grupos, omitidos, incluidos, totalRecintos } = consolidado
   const frases = frasesDeOmision(omitidos)
-  const hayPrecio = grupos.some((grupo) => grupo.conPrecio)
 
   return (
     <>
@@ -121,64 +139,85 @@ function HojaConsolidado({ proyecto, biblioteca }) {
         <table className="w-full border border-rule text-left">
           <thead>
             <tr className="bg-navy-soft text-navy-ink">
+              {/* La casilla no lleva rótulo: un cuadrado en el borde de una lista
+                  de compra ya dice qué se hace con él, y "Comprado" no cabe en
+                  los diez milímetros que necesita la columna. */}
+              <th className="border-b border-rule-strong px-2 py-1" />
               <th className="kb-label border-b border-rule-strong px-2 py-1">Material</th>
-              <th className="kb-label border-b border-rule-strong px-2 py-1">Unidad</th>
+              <th className="kb-label w-12 border-b border-rule-strong px-2 py-1">Unidad</th>
               <th className="kb-label border-b border-rule-strong px-2 py-1 text-right">
                 Cantidad
               </th>
-              <th className="kb-label border-b border-rule-strong px-2 py-1 text-right">
-                Precio unit.
-              </th>
-              <th className="kb-label border-b border-rule-strong px-2 py-1 text-right">
-                Subtotal
+              <th className="kb-label border-b border-rule-strong px-2 py-1">
+                Proveedor y precio
               </th>
             </tr>
           </thead>
           <tbody>
             {grupos.map((grupo) => (
               <tr key={grupo.id}>
+                <td className="w-8 border-b border-rule px-2 py-1 align-top">
+                  <Casilla />
+                </td>
                 <td className="border-b border-rule px-2 py-1 align-top">
                   <span className="text-base text-ink">{grupo.nombre}</span>
                   {/* La composición baja al flujo: en papel no hay margen de
-                      anotación que la sostenga al costado. */}
+                      anotación que la sostenga al costado. Se queda aunque el
+                      dinero se vaya, porque es la que contesta la pregunta que el
+                      comprador SÍ va a hacer: por qué pide 100 si los recintos
+                      suman 60. */}
                   <span className="mt-0.5 block text-sm text-ink-2">
-                    {composicionDeGrupo(grupo)}
+                    {composicionDeGrupo(grupo, { conDinero: false })}
                   </span>
                 </td>
-                <td className="border-b border-rule px-2 py-1 align-top text-ink-2">
+                <td className="w-12 border-b border-rule px-2 py-1 align-top text-ink-2">
                   {grupo.unidad}
                 </td>
                 <td className="kb-num border-b border-l border-rule-strong px-2 py-1 text-right align-top text-lg text-ink">
                   {cantidadLegible(grupo.cantidadFinal)}
                 </td>
-                <td className="kb-num border-b border-rule px-2 py-1 text-right align-top text-ink-2">
-                  <Peso valor={grupo.precioUnitario} />
-                </td>
-                <td className="kb-num border-b border-rule px-2 py-1 text-right align-top">
-                  <Peso valor={grupo.conPrecio ? grupo.subtotal : null} />
+                {/* El renglón se apoya ABAJO, no arriba: una fila con dos líneas
+                    de composición es alta, y un renglón anclado al techo deja al
+                    comprador escribiendo en el aire con media celda vacía debajo.
+                    Al pie queda siempre a la misma altura que la mano espera. */}
+                <td className="w-40 border-b border-l border-rule-strong px-2 pt-1 pb-2 align-bottom">
+                  <Renglon />
                 </td>
               </tr>
             ))}
           </tbody>
           <tfoot>
+            {/* Cuenta de líneas, no total de dinero. Una lista de compra viaja
+                doblada en un bolsillo y se separa: saber cuántos materiales
+                tenía es lo que permite darse cuenta de que falta una hoja. */}
             <tr>
-              <td colSpan={4} className="border-t border-rule-strong bg-margin px-2 py-1">
-                <span className="kb-label kb-label-strong">Total del proyecto</span>
-              </td>
-              <td className="kb-num border-t border-rule-strong bg-margin px-2 py-1 text-right text-lg text-ink">
-                <Peso valor={hayPrecio ? totalConPrecio : null} />
+              <td colSpan={5} className="border-t border-rule-strong bg-margin px-2 py-1">
+                <span className="kb-label kb-label-strong">
+                  {grupos.length === 1 ? '1 material en esta lista' : `${grupos.length} materiales en esta lista`}
+                </span>
               </td>
             </tr>
           </tfoot>
         </table>
       )}
 
-      {lineasSinPrecio > 0 ? (
-        <p className="mt-2 text-sm text-ink-2">
-          {lineasSinPrecio === 1
-            ? '1 material quedó sin precio: el total considera solo las líneas con precio cargado.'
-            : `${lineasSinPrecio} materiales quedaron sin precio: el total considera solo las líneas con precio cargado.`}
-        </p>
+      {/* Cierre del documento: la hoja se entrega, se compra contra ella y
+          alguien recibe. Sin esto el papel no cierra ningún ciclo. */}
+      {grupos.length > 0 ? (
+        <div className="kb-hoja-bloque mt-5 flex gap-6 border-t border-rule-strong pt-3">
+          <div className="flex-1">
+            <span className="kb-label">Recibe conforme</span>
+            <span className="mt-7 block">
+              <Renglon />
+            </span>
+          </div>
+          <div className="w-40">
+            <span className="kb-label">Fecha</span>
+            <span className="mt-7 block">
+              <Renglon />
+            </span>
+          </div>
+        </div>
       ) : null}
     </>
   )

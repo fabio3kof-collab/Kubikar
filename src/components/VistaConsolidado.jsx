@@ -130,20 +130,33 @@ export function cantidadLegible(cantidad) {
  * texto no sabe qué material lleva escalón —eso lo declara el módulo en su
  * línea— y por eso habla de compra y no de tornillos.
  *
+ * El dinero se puede apagar con `conDinero`. Lo usa la hoja impresa del
+ * consolidado, que se le entrega al encargado de adquisiciones y no lleva
+ * precios: sin esta puerta, el costo volvería a colarse en el papel por debajo,
+ * escrito dentro de la composición, que es la peor forma de que reaparezca —nadie
+ * lo buscaría ahí.
+ *
  * @param {Object} grupo
+ * @param {{conDinero?:boolean}} [opciones]
  * @returns {string}
  */
-export function composicionDeGrupo(grupo) {
+export function composicionDeGrupo(grupo, opciones = {}) {
+  const conDinero = opciones.conDinero !== false
   const aportes = grupo.detalle
     .map((aporte) => `${aporte.recintoNombre} ${cantidadLegible(aporte.cantidadFinal)}`)
     .join(' + ')
   const sumada = grupo.cantidadSumada ?? grupo.cantidadFinal
-  const suma = `${aportes} = ${cantidadLegible(sumada)} ${grupo.unidad}`
+  // OJO: el espacio entre la cifra y su unidad es U+00A0, no un espacio normal,
+  // acá y en la cola del escalón. No se ve en el fuente y es a propósito: en la
+  // hoja impresa la composición vive en una columna angosta, y con espacio normal
+  // el «un» se descuelga solo a la línea siguiente. Una cifra y su unidad son una
+  // sola palabra y no se parten.
+  const suma = `${aportes} = ${cantidadLegible(sumada)} ${grupo.unidad}`
   const escalon =
     grupo.compra && grupo.cantidadFinal !== sumada
-      ? ` · escalón de compra: mínimo ${cantidadLegible(grupo.compra.minimo)}, de ${cantidadLegible(grupo.compra.paso)} en ${cantidadLegible(grupo.compra.paso)} → ${cantidadLegible(grupo.cantidadFinal)} ${grupo.unidad}`
+      ? ` · escalón de compra: mínimo ${cantidadLegible(grupo.compra.minimo)}, de ${cantidadLegible(grupo.compra.paso)} en ${cantidadLegible(grupo.compra.paso)} → ${cantidadLegible(grupo.cantidadFinal)} ${grupo.unidad}`
       : ''
-  if (!grupo.conPrecio) return `${suma}${escalon}`
+  if (!conDinero || !grupo.conPrecio) return `${suma}${escalon}`
   return `${suma}${escalon} · ${formatearCLP(grupo.precioUnitario)} por ${grupo.unidad} = ${formatearCLP(grupo.subtotal)}`
 }
 
