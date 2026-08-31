@@ -326,7 +326,7 @@ Un título lleva **más aire arriba que abajo**: la regla que lo subraya va pega
 
 - **1180px**: el margen de aparato deja de ser columna y pasa a ser lámina inferior desplegable (45dvh); el riel se convierte en tira horizontal de detentes.
 - **900px**: la clave de recintos se repliega en el desplegable de la barra superior y se retira su pista; además desaparece el botón de renombrar proyecto, que sigue disponible en la vista de proyectos.
-- **640px**: las tres salidas del trabajo —Biblioteca, JSON, CSV— se repliegan en un botón de desbordamiento que abre un diálogo.
+- **640px**: las cuatro entradas y salidas del trabajo —Biblioteca, abrir, guardar, CSV— se repliegan en un botón de desbordamiento que abre un diálogo. Sus rótulos se retiran antes, en 1320px, y quedan los iconos con `title`.
 
 El lienzo es la única zona que sobrevive los tres cortes.
 
@@ -334,7 +334,11 @@ El lienzo es la única zona que sobrevive los tres cortes.
 
 **La Regla del Ancho del Aparato.** El bloque de medida más su margen de anotación piden 560px (320 de bloque + 240 de margen). Donde no hay 560px, el margen no se monta y las notas vuelven al flujo. Por eso la pestaña Resultados **no vive en el margen derecho**: en el diseño amplio se monta en la zona central, que es la única pista con ancho suficiente, y la pista derecha se encoge hasta el riel. Geometría y Módulo se quedan a la derecha porque son entrada y acompañan al dibujo. El lienzo no desaparece: queda como franja superior del 30%.
 
-**La Regla del Encogimiento por Resta.** Una barra se encoge quitando controles, nunca apilándolos. Bajo 900px la barra superior SUMA el desplegable de recintos, así que retira el renombrado; bajo 640px retira las tres exportaciones a un desbordamiento. Una cabecera de cinco filas le come al lienzo media pantalla.
+**La Regla del Encogimiento por Resta.** Una barra se encoge quitando controles, nunca apilándolos. Bajo 900px la barra superior SUMA el desplegable de recintos, así que retira el renombrado; bajo 1320px retira los rótulos de las cuatro entradas y salidas; bajo 640px las retira enteras a un desbordamiento. Una cabecera de cinco filas le come al lienzo media pantalla.
+
+**La Regla de la Salida con su Entrada.** Una acción que saca trabajo del producto se dibuja junto a la que lo devuelve, en el mismo grupo y con el mismo peso. Guardar sin abrir al lado no se lee como media función: se lee como un callejón, y el usuario concluye que el archivo que acaba de generar no sirve para volver. Por eso "Abrir desde el PC" está en la barra superior aunque ya exista en la vista de proyectos, con el rótulo idéntico en las dos partes.
+
+**La Regla del Rótulo por Destino.** Un control que mueve trabajo se rotula por dónde queda —"Guardar en el PC"—, no por la sintaxis del archivo —"JSON del proyecto"—. La excepción es cuando el formato ES la decisión: "CSV para Excel" se elige justamente por abrirse en Excel.
 
 ## Elevation & Depth
 

@@ -11,7 +11,7 @@
    está trazado todo lo demás.
 
    El texto de un aviso nombra el problema y la salida. "No se pudo guardar" es
-   una queja; "No se pudo guardar en este navegador. Exporta el proyecto a JSON
+   una queja; "No se pudo guardar en este navegador. Guarda el proyecto en el PC
    para no perder el trabajo" es un aviso.
    ============================================================================ */
 

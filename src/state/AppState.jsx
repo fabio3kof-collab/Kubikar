@@ -23,7 +23,7 @@
    4. UNA FALLA DE ALMACENAMIENTO NO PIERDE EL TRABAJO. Si el repositorio lanza
       `ErrorAlmacenamiento`, el estado en memoria queda intacto y el aviso se
       publica en `avisoAlmacenamiento` para que la interfaz ofrezca la salida:
-      exportar el proyecto a JSON.
+      guardar el proyecto en el PC.
    ========================================================================== */
 
 import {
@@ -816,6 +816,18 @@ function esFallaDeAlmacenamiento(falla) {
 }
 
 /**
+ * Texto de lo que llega desde un campo de archivo. Acepta el `File` del
+ * selector, el texto ya leído o el objeto ya parseado, de modo que las dos
+ * importaciones —proyecto y biblioteca— se puedan probar sin navegador.
+ * @param {*} entrada
+ * @returns {Promise<*>}
+ */
+async function textoDeEntrada(entrada) {
+  if (entrada && typeof entrada.text === 'function') return await entrada.text()
+  return entrada
+}
+
+/**
  * Pasa el punto por los detentes del dibujo. La secuencia entera vive en
  * `aplicarDetentes`, que es la MISMA que usa la vista previa del lienzo: acá solo
  * se leen los interruptores del estado y se le entregan.
@@ -882,7 +894,7 @@ export function ProveedorApp({ children }) {
       aviso: {
         tipo: 'escritura',
         mensaje:
-          'No se pudo acceder a los datos guardados en este navegador. El trabajo sigue en pantalla: expórtalo a JSON para no perderlo.',
+          'No se pudo acceder a los datos guardados en este navegador. El trabajo sigue en pantalla: guárdalo en el PC para no perderlo.',
       },
     })
   }, [])
@@ -1156,8 +1168,7 @@ export function ProveedorApp({ children }) {
     async function importarProyecto(entrada) {
       await guardarProyectoAhora()
       try {
-        const contenido =
-          entrada && typeof entrada.text === 'function' ? await entrada.text() : entrada
+        const contenido = await textoDeEntrada(entrada)
         const resultado = await repo.importarProyecto(contenido)
         if (!resultado.ok) return resultado
 
@@ -1171,7 +1182,7 @@ export function ProveedorApp({ children }) {
         manejarFalla(falla)
         return {
           ok: false,
-          error: 'No se pudo abrir el archivo. Revisa que sea el JSON exportado por Kubikar.',
+          error: 'No se pudo abrir el archivo. Revisa que sea el JSON guardado por Kubikar.',
         }
       }
     }
@@ -1403,6 +1414,27 @@ export function ProveedorApp({ children }) {
       }
     }
 
+    /**
+     * Mezcla en la biblioteca local la de un archivo. Igual que la importación
+     * de proyecto, un archivo que no sirve devuelve `{ok:false, error}` y no
+     * levanta el aviso de almacenamiento: es un dato del usuario, no una falla.
+     */
+    async function importarBiblioteca(entrada) {
+      try {
+        const contenido = await textoDeEntrada(entrada)
+        const resultado = await repo.importarBiblioteca(contenido)
+        if (!resultado.ok) return resultado
+        dispatch({ tipo: 'BIBLIOTECA', biblioteca: resultado.biblioteca })
+        return resultado
+      } catch (falla) {
+        manejarFalla(falla)
+        return {
+          ok: false,
+          error: 'No se pudo abrir el archivo. Revisa que sea un JSON exportado por Kubikar.',
+        }
+      }
+    }
+
     /** Dónde se usa un material, para el diálogo de confirmación de borrado. */
     async function usosDeMaterial(id) {
       try {
@@ -1451,6 +1483,7 @@ export function ProveedorApp({ children }) {
       eliminarMaterial,
       duplicarMaterial,
       restaurarBiblioteca,
+      importarBiblioteca,
       usosDeMaterial,
       alternarIman,
       alternarOrtogonal,

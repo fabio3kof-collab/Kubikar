@@ -8,7 +8,7 @@
 
    Por eso el aviso hace dos cosas y no una. Nombra el problema según su tipo
    (cuota agotada, falla de escritura, falla de lectura) y ofrece la salida que
-   sí funciona aunque el almacenamiento esté caído: exportar el proyecto a JSON.
+   sí funciona aunque el almacenamiento esté caído: guardar el proyecto en el PC.
    El estado en memoria queda intacto, así que lo que está en pantalla se puede
    sacar completo en un archivo.
 
@@ -17,10 +17,11 @@
    justificada, porque el usuario puede estar a punto de cerrar la pestaña.
 
    La banda es PERSISTENTE y no lleva cierre: se retira sola cuando el trabajo
-   ya quedó en disco, que es al exportar. Ese es el punto entero del aviso.
+   ya quedó en disco, que es al guardarlo en el PC. Ese es el punto entero del
+   aviso.
    ============================================================================ */
 
-import { FileJson } from 'lucide-react'
+import { Download } from 'lucide-react'
 
 import { descargarJsonDeProyecto } from '../export/descargar.js'
 import { useApp } from '../state/AppState.jsx'
@@ -47,7 +48,7 @@ export function AvisoAlmacenamiento() {
 
   const titulo = TITULOS[aviso.tipo] || TITULOS.escritura
 
-  function exportar() {
+  function guardarEnElPc() {
     const listo = acciones.proyectoConResultados()
     if (!listo) return
     descargarJsonDeProyecto(listo, estado.biblioteca)
@@ -60,15 +61,15 @@ export function AvisoAlmacenamiento() {
     <Aviso
       nivel="error"
       titulo={titulo}
-      // Sin cierre a mano. Una banda que se puede descartar sin exportar deja
-      // al usuario trabajando en la creencia de que se está guardando, que es
-      // exactamente la pérdida de trabajo que este aviso existe para evitar.
-      // La única salida de la banda es sacar el JSON.
+      // Sin cierre a mano. Una banda que se puede descartar sin haber sacado el
+      // archivo deja al usuario trabajando en la creencia de que se está
+      // guardando, que es exactamente la pérdida de trabajo que este aviso existe
+      // para evitar. La única salida de la banda es el archivo en el PC.
       className="border-b"
       acciones={
         estado.proyecto ? (
-          <Boton variante="primaria" tamano="sm" icono={FileJson} onClick={exportar}>
-            Exportar proyecto a JSON
+          <Boton variante="primaria" tamano="sm" icono={Download} onClick={guardarEnElPc}>
+            Guardar el proyecto en el PC
           </Boton>
         ) : null
       }

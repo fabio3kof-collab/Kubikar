@@ -21,9 +21,23 @@
  * Se emiten como `null` en cada material y en cada línea para que las columnas
  * ya existan del lado del que integra, y llenarlas más adelante no obligue a
  * subir la versión del formato.
+ *
+ * Este archivo produce ADEMÁS un segundo formato, `kubikar.biblioteca`, con el
+ * catálogo completo y sin proyecto adentro. No es una variante del anterior: el
+ * archivo de proyecto lleva a propósito solo los materiales que el proyecto usa,
+ * y mudar un catálogo de perfiles con sus precios a otro computador es otra
+ * tarea. Los dos comparten el sobre para que un lector externo —Karbec incluido—
+ * decida qué está leyendo mirando un solo campo.
  */
 
-import { FORMATO, FORMATO_VERSION, UNIDAD_BASE, clonar } from '../data/schema.js'
+import {
+  FORMATO,
+  FORMATO_BIBLIOTECA,
+  FORMATO_BIBLIOTECA_VERSION,
+  FORMATO_VERSION,
+  UNIDAD_BASE,
+  clonar,
+} from '../data/schema.js'
 import { sufijoNombre } from './csv.js'
 
 /** MIME del archivo generado. */
@@ -97,6 +111,55 @@ export function jsonDeProyecto(proyecto, biblioteca, opciones = {}) {
  */
 export function nombreArchivoJson(proyecto, fecha = new Date()) {
   return `kubikar-${sufijoNombre(proyecto, fecha)}.json`
+}
+
+/* =============================================================================
+   Biblioteca suelta
+   -----------------------------------------------------------------------------
+   La biblioteca es compartida entre proyectos y se traslada sin proyecto de por
+   medio: el catálogo que se arma en la oficina tiene que llegar completo al
+   notebook de faena, y el archivo de proyecto solo lleva los materiales que ese
+   proyecto usa.
+   ========================================================================== */
+
+/**
+ * Arma el objeto de biblioteca exportado.
+ * @param {Object[]} biblioteca biblioteca completa
+ * @param {{fecha?:Date}} [opciones]
+ * @returns {Object}
+ */
+export function armarBibliotecaExportada(biblioteca, opciones = {}) {
+  const fecha = opciones.fecha instanceof Date ? opciones.fecha : new Date()
+  return {
+    formato: FORMATO_BIBLIOTECA,
+    version: FORMATO_BIBLIOTECA_VERSION,
+    unidadBase: UNIDAD_BASE,
+    generadoEn: fecha.toISOString(),
+    biblioteca: clonar(Array.isArray(biblioteca) ? biblioteca : []),
+  }
+}
+
+/**
+ * Serializa la biblioteca completa para descarga.
+ * @param {Object[]} biblioteca
+ * @param {{fecha?:Date}} [opciones]
+ * @returns {string}
+ */
+export function jsonDeBiblioteca(biblioteca, opciones = {}) {
+  return JSON.stringify(armarBibliotecaExportada(biblioteca, opciones), null, 2)
+}
+
+/**
+ * Nombre de archivo sugerido: `kubikar-biblioteca-<aaaa-mm-dd>.json`.
+ *
+ * Reusa `sufijoNombre` con un proyecto de mentira llamado "biblioteca" para que
+ * la fecha se arme igual que en los otros dos archivos: tres archivos con tres
+ * maneras distintas de escribir la misma fecha se ordenan mal en una carpeta.
+ * @param {Date} [fecha]
+ * @returns {string}
+ */
+export function nombreArchivoJsonBiblioteca(fecha = new Date()) {
+  return `kubikar-${sufijoNombre({ nombre: 'biblioteca' }, fecha)}.json`
 }
 
 /**

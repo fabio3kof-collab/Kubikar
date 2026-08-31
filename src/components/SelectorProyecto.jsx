@@ -2,11 +2,16 @@
    Kubikar · selección de proyecto
    -----------------------------------------------------------------------------
    La vista de apertura: qué hay guardado en este navegador y por dónde se entra.
-   Crear, abrir, eliminar con confirmación, e importar un JSON exportado desde
-   Kubikar.
+   Crear, abrir, eliminar con confirmación, y abrir un proyecto guardado en el PC.
 
-   La importación nunca pisa nada: el repositorio asigna identificadores nuevos si
-   colisionan y reutiliza los materiales que ya existen. Cuando el archivo no
+   "Abrir desde el PC" es el mismo botón que la barra superior, con el mismo
+   rótulo a propósito: el que lo aprende en una vista lo reconoce en la otra. Acá
+   se queda porque esta es la vista de apertura y ahí es donde se busca; allá se
+   agregó porque tenerlo solo acá hacía creer que Kubikar no sabía leer sus
+   propios archivos.
+
+   Abrir desde el PC nunca pisa nada: el repositorio asigna identificadores nuevos
+   si colisionan y reutiliza los materiales que ya existen. Cuando el archivo no
    sirve, `importarProyecto` devuelve `{ok:false, error}` con el motivo redactado
    en español, y ese motivo se muestra tal cual. Un archivo inválido es un dato
    del usuario, no una falla del sistema: no levanta el aviso de almacenamiento.
@@ -130,7 +135,7 @@ export function SelectorProyecto() {
     if (!resultado || resultado.ok !== true) {
       setErrorImportacion(
         (resultado && resultado.error) ||
-          'No se pudo abrir el archivo. Revisa que sea el JSON exportado por Kubikar.',
+          'No se pudo abrir el archivo. Revisa que sea el JSON guardado por Kubikar.',
       )
     }
   }
@@ -144,6 +149,7 @@ export function SelectorProyecto() {
           <h2 className="text-2xl text-ink">Proyectos</h2>
           <p className="kb-prose">
             Cada proyecto guarda sus recintos, la planta dibujada y la cubicación en este navegador.
+            Para llevarlo a otro computador, ábrelo y guárdalo en el PC como archivo.
           </p>
         </div>
 
@@ -152,7 +158,7 @@ export function SelectorProyecto() {
             Crear proyecto
           </Boton>
           <Boton icono={Upload} cargando={trabajando} onClick={pedirArchivo}>
-            Importar JSON
+            Abrir desde el PC
           </Boton>
         </div>
       </header>
@@ -173,7 +179,7 @@ export function SelectorProyecto() {
       {errorImportacion ? (
         <Aviso
           nivel="error"
-          titulo="No se pudo importar el archivo"
+          titulo="No se pudo abrir el archivo"
           onCerrar={() => setErrorImportacion('')}
         >
           {errorImportacion}
@@ -188,14 +194,14 @@ export function SelectorProyecto() {
         <EstadoVacio
           encuadrado
           titulo="Todavía no hay proyectos."
-          descripcion="Crea el primero para empezar a dibujar la planta, o importa un JSON exportado desde Kubikar."
+          descripcion="Crea el primero para empezar a dibujar la planta, o abre uno que hayas guardado en el PC desde Kubikar."
           acciones={
             <>
               <Boton variante="primaria" icono={FilePlus2} onClick={abrirCreacion}>
                 Crear proyecto
               </Boton>
               <Boton icono={Upload} onClick={pedirArchivo}>
-                Importar JSON
+                Abrir desde el PC
               </Boton>
             </>
           }
@@ -299,7 +305,7 @@ export function SelectorProyecto() {
         ancho="sm"
         descripcion={
           porEliminar
-            ? `Se elimina "${porEliminar.nombre}" y toda su cubicación (${cuentaDeRecintos(porEliminar.recintos)}). Esta acción no se puede deshacer. Si quieres conservarlo, ábrelo y expórtalo a JSON antes.`
+            ? `Se elimina "${porEliminar.nombre}" y toda su cubicación (${cuentaDeRecintos(porEliminar.recintos)}). Esta acción no se puede deshacer. Si quieres conservarlo, ábrelo y guárdalo en el PC antes.`
             : ''
         }
         acciones={

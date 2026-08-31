@@ -21,6 +21,17 @@
  * Toda la geometría se guarda SIEMPRE en la unidad base (milímetros). La
  * unidad activa de la interfaz es solo presentación y viaja aparte, en
  * `proyecto.unidadActiva`.
+ *
+ * Los dos archivos que Kubikar sabe leer
+ * --------------------------------------
+ *   · `kubikar.proyecto`   — un proyecto con los materiales que ese proyecto usa.
+ *   · `kubikar.biblioteca` — la biblioteca completa, sin proyecto de por medio.
+ *
+ * Comparten el sobre (`formato`, `version`, `unidadBase`, `generadoEn`) y por
+ * eso lo revisa una sola función, `revisarSobre`: un archivo del futuro tiene
+ * que rebotar con las mismas palabras venga como venga. Cada uno tiene después
+ * su validador, y el de biblioteca acepta además un archivo de proyecto, del
+ * que toma su lista de materiales.
  */
 
 /** Identificador del formato de intercambio. */
@@ -28,6 +39,20 @@ export const FORMATO = 'kubikar.proyecto'
 
 /** Versión del formato. Se sube solo si cambia la forma de manera incompatible. */
 export const FORMATO_VERSION = 1
+
+/**
+ * Identificador del archivo de biblioteca suelta.
+ *
+ * Existe porque la biblioteca es COMPARTIDA entre proyectos y se traslada sin
+ * proyecto de por medio: quien arma su catálogo de planchas y perfiles en la
+ * oficina lo quiere completo en el notebook de faena, y el archivo de proyecto
+ * solo lleva los materiales que ese proyecto usa. Meterlo dentro del formato de
+ * proyecto obligaría a inventar un proyecto vacío para transportar materiales.
+ */
+export const FORMATO_BIBLIOTECA = 'kubikar.biblioteca'
+
+/** Versión del formato de biblioteca. Se sube igual que la de proyecto. */
+export const FORMATO_BIBLIOTECA_VERSION = 1
 
 /** Unidad base interna. La geometría almacenada nunca sale de milímetros. */
 export const UNIDAD_BASE = 'mm'
@@ -540,16 +565,21 @@ export function normalizarProyecto(obj) {
    ========================================================================== */
 
 /**
- * Valida un archivo de proyecto de Kubikar.
+ * Revisa el SOBRE, que es lo único que comparten los dos archivos que Kubikar
+ * sabe leer: el de proyecto y el de biblioteca. Parsea el texto crudo si viene
+ * sin parsear, comprueba que declare un formato conocido, que su versión sea
+ * legible por esta build y que la geometría venga en la unidad base.
  *
- * Acepta el objeto ya parseado o el texto crudo del archivo. Rechaza con un
- * mensaje en español cualquier formato o versión que esta build no sepa leer:
- * abrir a medias un archivo desconocido es peor que no abrirlo.
+ * Va aparte porque los dos validadores lo necesitan idéntico: un archivo del
+ * futuro tiene que rechazarse con las mismas palabras venga como venga.
  *
  * @param {*} obj objeto parseado o texto JSON
- * @returns {{ok:true, proyecto:Proyecto, biblioteca:Material[]} | {ok:false, error:string}}
+ * @param {{formato:string, versionMaxima:number}[]} aceptados formatos legibles;
+ *   el primero es el que se nombra al reclamar
+ * @param {string} queEs cómo se llama en la frase de error ("un proyecto de Kubikar")
+ * @returns {{ok:true, datos:Object, formato:string} | {ok:false, error:string}}
  */
-export function validarProyectoImportado(obj) {
+function revisarSobre(obj, aceptados, queEs) {
   let datos = obj
 
   if (typeof datos === 'string') {
@@ -558,23 +588,24 @@ export function validarProyectoImportado(obj) {
     } catch {
       return {
         ok: false,
-        error: 'El archivo no es un JSON válido. Revisa que sea el archivo exportado por Kubikar.',
+        error: 'El archivo no es un JSON válido. Revisa que sea el archivo guardado por Kubikar.',
       }
     }
   }
 
   if (!datos || typeof datos !== 'object' || Array.isArray(datos)) {
-    return { ok: false, error: 'El archivo no contiene un proyecto de Kubikar.' }
+    return { ok: false, error: `El archivo no contiene ${queEs}.` }
   }
 
-  if (datos.formato !== FORMATO) {
+  const aceptado = aceptados.find((candidato) => candidato.formato === datos.formato)
+  if (!aceptado) {
     const encontrado =
       typeof datos.formato === 'string' && datos.formato.trim()
         ? `"${datos.formato.trim()}"`
         : 'ninguno'
     return {
       ok: false,
-      error: `El archivo no es un proyecto de Kubikar. Se esperaba el formato "${FORMATO}" y se encontró ${encontrado}.`,
+      error: `El archivo no es ${queEs}. Se esperaba el formato "${aceptados[0].formato}" y se encontró ${encontrado}.`,
     }
   }
 
@@ -585,12 +616,43 @@ export function validarProyectoImportado(obj) {
       error: 'El archivo no declara una versión de formato válida y no se puede abrir.',
     }
   }
-  if (version > FORMATO_VERSION) {
+  if (version > aceptado.versionMaxima) {
     return {
       ok: false,
-      error: `El archivo fue generado con la versión ${version} del formato y esta versión de Kubikar lee hasta la ${FORMATO_VERSION}. Actualiza Kubikar para abrirlo.`,
+      error: `El archivo fue generado con la versión ${version} del formato y esta versión de Kubikar lee hasta la ${aceptado.versionMaxima}. Actualiza Kubikar para abrirlo.`,
     }
   }
+
+  // La unidad base es informativa: si el archivo declara otra, la geometría no
+  // es interpretable en milímetros y se rechaza antes de deformar las medidas.
+  if (datos.unidadBase !== undefined && datos.unidadBase !== UNIDAD_BASE) {
+    return {
+      ok: false,
+      error: `El archivo declara la unidad base "${String(datos.unidadBase)}" y Kubikar guarda la geometría en ${UNIDAD_BASE}.`,
+    }
+  }
+
+  return { ok: true, datos, formato: aceptado.formato }
+}
+
+/**
+ * Valida un archivo de proyecto de Kubikar.
+ *
+ * Acepta el objeto ya parseado o el texto crudo del archivo. Rechaza con un
+ * mensaje en español cualquier formato o versión que esta build no sepa leer:
+ * abrir a medias un archivo desconocido es peor que no abrirlo.
+ *
+ * @param {*} obj objeto parseado o texto JSON
+ * @returns {{ok:true, proyecto:Proyecto, biblioteca:Material[]} | {ok:false, error:string}}
+ */
+export function validarProyectoImportado(obj) {
+  const sobre = revisarSobre(
+    obj,
+    [{ formato: FORMATO, versionMaxima: FORMATO_VERSION }],
+    'un proyecto de Kubikar',
+  )
+  if (!sobre.ok) return sobre
+  const datos = sobre.datos
 
   if (!datos.proyecto || typeof datos.proyecto !== 'object' || Array.isArray(datos.proyecto)) {
     return { ok: false, error: 'El archivo no trae ningún proyecto adentro.' }
@@ -608,19 +670,42 @@ export function validarProyectoImportado(obj) {
     }
   }
 
-  // La unidad base es informativa: si el archivo declara otra, la geometría no
-  // es interpretable en milímetros y se rechaza antes de deformar las medidas.
-  if (datos.unidadBase !== undefined && datos.unidadBase !== UNIDAD_BASE) {
-    return {
-      ok: false,
-      error: `El archivo declara la unidad base "${String(datos.unidadBase)}" y Kubikar guarda la geometría en ${UNIDAD_BASE}.`,
-    }
-  }
-
   const proyecto = normalizarProyecto(datos.proyecto)
   const biblioteca = Array.isArray(datos.biblioteca)
     ? datos.biblioteca.map(normalizarMaterial)
     : []
 
   return { ok: true, proyecto, biblioteca }
+}
+
+/**
+ * Valida un archivo de biblioteca de Kubikar.
+ *
+ * Acepta TAMBIÉN un archivo de proyecto, del que toma su biblioteca. No es
+ * generosidad gratuita: los dos archivos se ven iguales en el explorador y el
+ * de proyecto trae materiales de verdad. Rechazarlo obligaría al usuario a
+ * distinguir dos JSON por el nombre antes de poder abrir ninguno.
+ *
+ * @param {*} obj objeto parseado o texto JSON
+ * @returns {{ok:true, biblioteca:Material[]} | {ok:false, error:string}}
+ */
+export function validarBibliotecaImportada(obj) {
+  const sobre = revisarSobre(
+    obj,
+    [
+      { formato: FORMATO_BIBLIOTECA, versionMaxima: FORMATO_BIBLIOTECA_VERSION },
+      { formato: FORMATO, versionMaxima: FORMATO_VERSION },
+    ],
+    'una biblioteca de Kubikar',
+  )
+  if (!sobre.ok) return sobre
+
+  if (!Array.isArray(sobre.datos.biblioteca)) {
+    return {
+      ok: false,
+      error: 'El archivo no trae ninguna biblioteca de materiales adentro.',
+    }
+  }
+
+  return { ok: true, biblioteca: sobre.datos.biblioteca.map(normalizarMaterial) }
 }

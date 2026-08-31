@@ -31,6 +31,7 @@ import {
   normalizarProyecto,
   nuevoId,
   nuevoProyecto,
+  validarBibliotecaImportada,
   validarProyectoImportado,
   UNIDAD_POR_DEFECTO,
 } from './schema.js'
@@ -430,6 +431,53 @@ export const repo = {
     }
     if (agregados > 0) persistirBiblioteca(lista)
     return clonar(lista)
+  },
+
+  /**
+   * Importa un archivo de biblioteca (o la biblioteca de un archivo de
+   * proyecto) y la MEZCLA con la local. Nunca reemplaza: el catálogo del
+   * usuario es trabajo acumulado y un archivo traído de otro computador no
+   * tiene autoridad para borrarlo.
+   *
+   * La identidad de un material acá es su tipo más su nombre, no su id. Es la
+   * misma clave que usa `restaurarBiblioteca` y es la correcta para este caso:
+   * dos computadores que sembraron la biblioteca por separado tienen "Plancha
+   * de yeso-cartón 1200 x 3000" con ids distintos, y duplicarla en cada
+   * traslado dejaría el desplegable del módulo lleno de repetidos. Un material
+   * que ya está se omite tal como está: lo local manda sobre lo importado.
+   *
+   * @param {*} json objeto o texto
+   * @returns {Promise<{ok:true, agregados:number, omitidos:number, biblioteca:Object[]} | {ok:false, error:string}>}
+   */
+  async importarBiblioteca(json) {
+    const validacion = validarBibliotecaImportada(json)
+    if (!validacion.ok) return validacion
+
+    const lista = cargarBiblioteca()
+    const nombres = new Set(lista.map((m) => `${m.tipo}::${m.nombre}`))
+    const ids = new Set(lista.map((m) => m.id))
+
+    let agregados = 0
+    let omitidos = 0
+
+    for (const material of validacion.biblioteca) {
+      const clave = `${material.tipo}::${material.nombre}`
+      if (nombres.has(clave)) {
+        omitidos += 1
+        continue
+      }
+      // El id solo se cambia si choca con otro material local: conservarlo
+      // cuando se puede es lo que hace que importar el proyecto después
+      // reencuentre sus referencias en vez de duplicar el material.
+      const copia = ids.has(material.id) ? { ...material, id: nuevoId('mat') } : material
+      lista.push(copia)
+      nombres.add(clave)
+      ids.add(copia.id)
+      agregados += 1
+    }
+
+    if (agregados > 0) persistirBiblioteca(lista)
+    return { ok: true, agregados, omitidos, biblioteca: clonar(lista) }
   },
 
   /**

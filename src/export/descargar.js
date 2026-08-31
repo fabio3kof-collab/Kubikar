@@ -8,7 +8,13 @@
  */
 
 import { MIME_CSV, csvDeProyecto, nombreArchivoCsv } from './csv.js'
-import { MIME_JSON, jsonDeProyecto, nombreArchivoJson } from './json.js'
+import {
+  MIME_JSON,
+  jsonDeBiblioteca,
+  jsonDeProyecto,
+  nombreArchivoJson,
+  nombreArchivoJsonBiblioteca,
+} from './json.js'
 
 /**
  * Descarga un contenido de texto como archivo.
@@ -56,5 +62,17 @@ export function descargarCsvDeProyecto(proyecto) {
 export function descargarJsonDeProyecto(proyecto, biblioteca) {
   const nombre = nombreArchivoJson(proyecto)
   descargarTexto(nombre, jsonDeProyecto(proyecto, biblioteca), MIME_JSON)
+  return nombre
+}
+
+/**
+ * Guarda la biblioteca completa como archivo, para trasladarla entre
+ * computadores sin arrastrar un proyecto.
+ * @param {Object[]} biblioteca
+ * @returns {string} nombre del archivo descargado
+ */
+export function descargarJsonDeBiblioteca(biblioteca) {
+  const nombre = nombreArchivoJsonBiblioteca()
+  descargarTexto(nombre, jsonDeBiblioteca(biblioteca), MIME_JSON)
   return nombre
 }

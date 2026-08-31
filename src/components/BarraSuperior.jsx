@@ -2,34 +2,53 @@
    Kubikar · barra superior
    -----------------------------------------------------------------------------
    La cabecera de la edición: la marca con su cruz de registro, qué proyecto está
-   abierto, en qué unidad se trabaja y por dónde sale el trabajo (biblioteca,
-   JSON, CSV).
+   abierto, en qué unidad se trabaja y por dónde entra y sale el trabajo
+   (biblioteca, archivo de proyecto, CSV).
 
-   Tres cosas que este archivo resuelve y conviene no perder de vista:
+   Cuatro cosas que este archivo resuelve y conviene no perder de vista:
 
    1. LA UNIDAD ACTIVA ES SOLO PRESENTACIÓN. Los tres detentes mm / cm / m
       cambian cómo se leen y se escriben las medidas; la geometría sigue en
       milímetros y no se toca. Eso lo garantiza el reductor, acá solo se despacha.
 
-   2. LO QUE SE EXPORTA ES EL PROYECTO CON SUS DERIVADOS CONGELADOS
+   2. LO QUE SE GUARDA ES EL PROYECTO CON SUS DERIVADOS CONGELADOS
       (`acciones.proyectoConResultados()`), no el proyecto en memoria: el archivo
       debe decir exactamente lo que muestra la pantalla.
 
-   3. BAJO 900px LA CLAVE DE RECINTOS COLAPSA ACÁ. El desplegable de esta barra
+   3. GUARDAR Y ABRIR VAN JUNTOS, Y ESO NO ES SIMETRÍA DECORATIVA. "Guardar en
+      el PC" vivía acá y "abrir desde el PC" vivía dos clics adentro, en la vista
+      de proyectos. La consecuencia observada fue que el usuario creyera que
+      Kubikar exportaba archivos que después no sabía leer, cuando lo único que
+      pasaba era que el botón de entrada estaba escondido. Una salida sin su
+      entrada al lado no se lee como media función: se lee como un callejón.
+
+      Los rótulos nombran el DESTINO y no el formato —"Guardar en el PC", no
+      "JSON del proyecto"— porque lo que el usuario decide en esa barra es dónde
+      queda su trabajo, no en qué sintaxis. Decir "en el PC" además desambigua
+      contra el testigo de guardado, que dice "Guardado 12:40" y se refiere al
+      navegador. El CSV conserva su nombre de formato porque ahí el formato SÍ
+      es la decisión: se elige por abrirlo en Excel.
+
+   4. BAJO 900px LA CLAVE DE RECINTOS COLAPSA ACÁ. El desplegable de esta barra
       es el mismo margen izquierdo en otra forma, alimentado por los ayudantes de
       `PanelRecintos.jsx` para que la numeración y el área digan lo mismo en las
       dos presentaciones.
 
-   4. LA BARRA SE ENCOGE QUITANDO, NO APILANDO. Bajo 900px aparece el
+   5. LA BARRA SE ENCOGE QUITANDO, NO APILANDO. Bajo 900px aparece el
       desplegable de recintos y se retira el botón de renombrar, que ya tiene su
       lugar en la vista de proyectos. Bajo 900px también se retira la versión,
-      que es dato de identificación y no de trabajo. Bajo 640px las tres salidas
-      del trabajo
-      —Biblioteca, JSON, CSV— se repliegan en un solo botón de desbordamiento.
-      Sin eso la cabecera se reparte en cinco filas y le come al lienzo la mitad
-      de la pantalla, y el lienzo es la única zona que nunca desaparece.
+      que es dato de identificación y no de trabajo. Bajo 640px las cuatro
+      entradas y salidas del trabajo —Biblioteca, abrir, guardar, CSV— se
+      repliegan en un solo botón de desbordamiento. Sin eso la cabecera se
+      reparte en cinco filas y le come al lienzo la mitad de la pantalla, y el
+      lienzo es la única zona que nunca desaparece.
 
-   5. EL TESTIGO DE GUARDADO. El proyecto se escribe con retardo y hasta acá lo
+      El corte de los rótulos está en 1320px y no en 1180px porque cuatro
+      rótulos no caben donde cabían tres. Se subió el corte en vez de dejar un
+      botón sin rótulo: el que se habría quedado mudo es justamente el de abrir,
+      que es el que nadie encontraba.
+
+   6. EL TESTIGO DE GUARDADO. El proyecto se escribe con retardo y hasta acá lo
       único visible del almacenamiento era su falla. El rótulo dice "Guardando"
       mientras el temporizador corre y "Guardado 12:40" cuando el repositorio ya
       resolvió. Sin icono y sin animación: es un cambio de texto en registro de
@@ -38,20 +57,31 @@
 
 import { useRef, useState } from 'react'
 import {
-  FileJson,
+  Download,
   FileSpreadsheet,
   FolderOpen,
   Library,
   MoreHorizontal,
   Plus,
   SquarePen,
+  Upload,
 } from 'lucide-react'
 
 import { UNIDADES } from '../core/units.js'
 import { FECHA_BUILD, VERSION_ACTUAL } from '../data/actualizaciones.js'
 import { descargarCsvDeProyecto, descargarJsonDeProyecto } from '../export/descargar.js'
 import { useApp } from '../state/AppState.jsx'
-import { Boton, CampoTexto, Cruz, Detente, Dialogo, Regla, Rotulo, Selector } from '../ui/index.js'
+import {
+  Aviso,
+  Boton,
+  CampoTexto,
+  Cruz,
+  Detente,
+  Dialogo,
+  Regla,
+  Rotulo,
+  Selector,
+} from '../ui/index.js'
 import { etiquetaRecinto } from './PanelRecintos.jsx'
 
 /**
@@ -109,9 +139,12 @@ export function BarraSuperior() {
   const [editandoNombre, setEditandoNombre] = useState(false)
   const [borrador, setBorrador] = useState('')
   const [menuAbierto, setMenuAbierto] = useState(false)
+  const [errorArchivo, setErrorArchivo] = useState('')
+  const [abriendo, setAbriendo] = useState(false)
   // Escape cierra la edición y el campo pierde el foco enseguida: sin esta
   // marca, el confirmar de la salida revertiría la cancelación.
   const canceladoRef = useRef(false)
+  const refArchivo = useRef(/** @type {HTMLInputElement|null} */ (null))
 
   const proyecto = estado.proyecto
   const recintos = proyecto && Array.isArray(proyecto.recintos) ? proyecto.recintos : []
@@ -153,11 +186,40 @@ export function BarraSuperior() {
     if (editandoNombre) confirmarEdicion()
   }
 
-  function exportarJson() {
+  function guardarEnElPc() {
     setMenuAbierto(false)
     const listo = acciones.proyectoConResultados()
     if (!listo) return
     descargarJsonDeProyecto(listo, estado.biblioteca)
+  }
+
+  function abrirDesdeElPc() {
+    setMenuAbierto(false)
+    setErrorArchivo('')
+    if (refArchivo.current) refArchivo.current.click()
+  }
+
+  /** @param {import('react').ChangeEvent<HTMLInputElement>} evento */
+  async function alElegirArchivo(evento) {
+    const campo = evento.target
+    const archivo = campo.files && campo.files.length > 0 ? campo.files[0] : null
+    // Se limpia enseguida para poder volver a elegir el mismo archivo después
+    // de corregirlo.
+    campo.value = ''
+    if (!archivo) return
+
+    setAbriendo(true)
+    const resultado = await acciones.importarProyecto(archivo)
+    setAbriendo(false)
+
+    // Un archivo que no sirve es un dato del usuario, no una falla del sistema:
+    // se le dice acá mismo y no levanta el aviso de almacenamiento.
+    if (!resultado || resultado.ok !== true) {
+      setErrorArchivo(
+        (resultado && resultado.error) ||
+          'No se pudo abrir el archivo. Revisa que sea el JSON guardado por Kubikar.',
+      )
+    }
   }
 
   function exportarCsv() {
@@ -333,13 +395,14 @@ export function BarraSuperior() {
           <Regla orientacion="vertical" />
         </span>
 
-        {/* Las tres salidas del trabajo. Sobre 1180px llevan su rótulo; entre
-            640 y 1180 quedan en icono con `title`, que es el nombre accesible
-            cuando el texto se oculta; bajo 640 se repliegan en el diálogo.
+        {/* Las cuatro entradas y salidas del trabajo. Sobre 1320px llevan su
+            rótulo; entre 640 y 1320 quedan en icono con `title`, que es el
+            nombre accesible cuando el texto se oculta; bajo 640 se repliegan en
+            el diálogo.
 
             El `title` repite el rótulo visible y lo amplía, nunca lo contradice:
-            un botón que dice "JSON del proyecto" y se llama "Exportar proyecto
-            a JSON" no se puede accionar por voz. */}
+            un botón que dice "Guardar en el PC" y se llama "Exportar proyecto a
+            JSON" no se puede accionar por voz. */}
         <div className="flex items-center gap-2 max-[640px]:hidden">
           <Boton
             tamano="sm"
@@ -348,17 +411,27 @@ export function BarraSuperior() {
             activo={estado.vista === 'biblioteca'}
             onClick={abrirBiblioteca}
           >
-            <span className="max-[1180px]:hidden">Biblioteca</span>
+            <span className="max-[1320px]:hidden">Biblioteca</span>
           </Boton>
 
           <Boton
             tamano="sm"
-            icono={FileJson}
-            title="Exportar JSON del proyecto"
-            deshabilitado={!proyecto}
-            onClick={exportarJson}
+            icono={Upload}
+            title="Abrir un proyecto guardado en el PC"
+            cargando={abriendo}
+            onClick={abrirDesdeElPc}
           >
-            <span className="max-[1180px]:hidden">JSON del proyecto</span>
+            <span className="max-[1320px]:hidden">Abrir desde el PC</span>
+          </Boton>
+
+          <Boton
+            tamano="sm"
+            icono={Download}
+            title="Guardar el proyecto en el PC como archivo"
+            deshabilitado={!proyecto}
+            onClick={guardarEnElPc}
+          >
+            <span className="max-[1320px]:hidden">Guardar en el PC</span>
           </Boton>
 
           <Boton
@@ -368,7 +441,7 @@ export function BarraSuperior() {
             deshabilitado={!proyecto}
             onClick={exportarCsv}
           >
-            <span className="max-[1180px]:hidden">CSV para Excel</span>
+            <span className="max-[1320px]:hidden">CSV para Excel</span>
           </Boton>
         </div>
 
@@ -387,6 +460,17 @@ export function BarraSuperior() {
         </span>
       </div>
 
+      {/* El campo de archivo no se muestra: la acción visible es el botón. */}
+      <input
+        ref={refArchivo}
+        type="file"
+        accept="application/json,.json"
+        className="sr-only"
+        tabIndex={-1}
+        aria-hidden="true"
+        onChange={alElegirArchivo}
+      />
+
       <Dialogo
         abierto={menuAbierto}
         onCerrar={() => setMenuAbierto(false)}
@@ -402,13 +486,37 @@ export function BarraSuperior() {
           >
             Biblioteca de materiales
           </Boton>
-          <Boton icono={FileJson} bloque deshabilitado={!proyecto} onClick={exportarJson}>
-            JSON del proyecto
+          <Boton icono={Upload} bloque cargando={abriendo} onClick={abrirDesdeElPc}>
+            Abrir desde el PC
+          </Boton>
+          <Boton icono={Download} bloque deshabilitado={!proyecto} onClick={guardarEnElPc}>
+            Guardar en el PC
           </Boton>
           <Boton icono={FileSpreadsheet} bloque deshabilitado={!proyecto} onClick={exportarCsv}>
             CSV para Excel
           </Boton>
         </div>
+      </Dialogo>
+
+      {/* El archivo que no sirve se reclama en un diálogo y no en una banda:
+          la barra superior no tiene dónde poner una banda sin empujar el lienzo,
+          y el error es puntual —se lee, se entiende y se cierra—, no un estado
+          persistente como la falla de almacenamiento. */}
+      <Dialogo
+        abierto={errorArchivo !== ''}
+        onCerrar={() => setErrorArchivo('')}
+        titulo="No se pudo abrir el archivo"
+        ancho="sm"
+        acciones={
+          <Boton variante="primaria" onClick={() => setErrorArchivo('')}>
+            Entendido
+          </Boton>
+        }
+      >
+        {/* Sin título propio: el del diálogo ya dijo qué pasó, y repetirlo
+            adentro deja al motivo —que es lo único que el usuario todavía no
+            sabe— en tercer lugar de lectura. */}
+        <Aviso nivel="error">{errorArchivo}</Aviso>
       </Dialogo>
     </header>
   )

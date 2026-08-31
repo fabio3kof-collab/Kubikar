@@ -25,7 +25,7 @@ export const CLAVES = {
 
 /**
  * Falla de almacenamiento con causa clasificada, para que la interfaz pueda
- * decir qué pasó y ofrecer la salida (exportar el proyecto a JSON).
+ * decir qué pasó y ofrecer la salida (guardar el proyecto en el PC).
  */
 export class ErrorAlmacenamiento extends Error {
   /**
@@ -55,7 +55,7 @@ function almacen() {
   if (typeof window === 'undefined' || !window.localStorage) {
     throw new ErrorAlmacenamiento(
       'lectura',
-      'El navegador no permite guardar datos en este equipo. Exporta el proyecto a JSON para conservar el trabajo.',
+      'El navegador no permite guardar datos en este equipo. Guarda el proyecto en el PC para conservar el trabajo.',
     )
   }
   return window.localStorage
@@ -131,7 +131,7 @@ export function escribir(clave, valor) {
   } catch (error) {
     throw new ErrorAlmacenamiento(
       'escritura',
-      'No se pudo preparar la información para guardarla. Exporta el proyecto a JSON para conservar el trabajo.',
+      'No se pudo preparar la información para guardarla. Guarda el proyecto en el PC para conservar el trabajo.',
       error,
     )
   }
@@ -143,14 +143,14 @@ export function escribir(clave, valor) {
     if (esErrorDeCuota(error)) {
       throw new ErrorAlmacenamiento(
         'cuota',
-        'Se acabó el espacio de almacenamiento del navegador. Exporta el proyecto a JSON y elimina proyectos antiguos para seguir guardando.',
+        'Se acabó el espacio de almacenamiento del navegador. Guarda el proyecto en el PC y elimina proyectos antiguos para seguir guardando.',
         error,
       )
     }
     // Navegación privada o almacenamiento bloqueado por política del sitio.
     throw new ErrorAlmacenamiento(
       'escritura',
-      'El navegador rechazó guardar los datos, puede estar en modo privado o con el almacenamiento bloqueado. Exporta el proyecto a JSON para no perder el trabajo.',
+      'El navegador rechazó guardar los datos, puede estar en modo privado o con el almacenamiento bloqueado. Guarda el proyecto en el PC para no perder el trabajo.',
       error,
     )
   }

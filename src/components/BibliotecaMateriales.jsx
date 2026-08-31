@@ -5,7 +5,7 @@
    revisa, se ordena y se corrige, y eso no se hace en una ventana flotante que
    tapa el proyecto.
 
-   CUATRO DECISIONES
+   CINCO DECISIONES
 
    1. AGRUPADA POR TIPO, y filtrable por tipo desde la misma fila de detentes.
       Una plancha se describe por ancho y largo, una barra por su largo comercial
@@ -25,14 +25,26 @@
       solo del abierto— y el diálogo los lista por nombre. Borrar un material
       que alimenta seis recintos no puede sentirse igual que borrar uno suelto.
 
+   5. LA BIBLIOTECA VIAJA SOLA. El archivo de proyecto lleva únicamente los
+      materiales que ese proyecto usa, así que no sirve para mudar el catálogo:
+      quien pasó una tarde cargando perfiles y precios en la oficina los quiere
+      completos en el notebook de faena. De ahí los dos botones de archivo de
+      esta cabecera, con el mismo par de rótulos que la barra superior.
+
+      Abrir MEZCLA, nunca reemplaza, y lo local gana: un material que ya está
+      —mismo tipo y mismo nombre— se omite con su precio y sus medidas intactos.
+      Reemplazar la biblioteca desde un archivo sería la única operación de
+      Kubikar capaz de borrar trabajo sin confirmación de por medio.
+
    Toda escritura pasa por las acciones del estado, que a su vez pasan por el
    repositorio: este archivo no conoce el almacenamiento.
    ============================================================================ */
 
-import { useCallback, useMemo, useState } from 'react'
-import { ArrowLeft, Copy, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react'
+import { useCallback, useMemo, useRef, useState } from 'react'
+import { ArrowLeft, Copy, Download, Pencil, Plus, RotateCcw, Trash2, Upload } from 'lucide-react'
 
 import { aUnidad, formatearCLP, formatearNumero, obtenerUnidad } from '../core/units.js'
+import { descargarJsonDeBiblioteca } from '../export/descargar.js'
 import { useApp } from '../state/AppState.jsx'
 import {
   Aviso,
@@ -81,6 +93,32 @@ const USOS_LEGIBLES = {
 
 /** Id del formulario del diálogo: enlaza el botón del pie con el <form>. */
 const ID_FORMULARIO = 'kb-formulario-material'
+
+/**
+ * Las dos frases del resultado de abrir un archivo, conjugadas.
+ *
+ * Van conjugadas y no armadas por concatenación porque el singular es el caso
+ * corriente —se trae un material que faltaba— y "1 material ya estaban" es
+ * exactamente la clase de descuido que le quita autoridad a una herramienta de
+ * medición. La cifra pasa por `formatearNumero`, como toda cifra de esta
+ * interfaz.
+ *
+ * @param {number} cantidad
+ * @returns {string}
+ */
+function frasePorAgregados(cantidad) {
+  if (cantidad === 1) return 'Se agregó 1 material.'
+  return `Se agregaron ${formatearNumero(cantidad, 0)} materiales.`
+}
+
+/**
+ * @param {number} cantidad
+ * @returns {string}
+ */
+function frasePorOmitidos(cantidad) {
+  if (cantidad === 1) return '1 material ya estaba y quedó como estaba.'
+  return `${formatearNumero(cantidad, 0)} materiales ya estaban y quedaron como estaban.`
+}
 
 /**
  * Una medida guardada en milímetros, leída en la unidad activa. Vacío si el
@@ -294,6 +332,11 @@ export function BibliotecaMateriales({ onVolver, className }) {
     /** @type {{material:Object, usos:Object[]|null}|null} */ (null),
   )
   const [eliminando, setEliminando] = useState(false)
+  const [abriendo, setAbriendo] = useState(false)
+  const [resultadoArchivo, setResultadoArchivo] = useState(
+    /** @type {{nivel:'error'|'ok'|'info', titulo:string, texto:string}|null} */ (null),
+  )
+  const refArchivo = useRef(/** @type {HTMLInputElement|null} */ (null))
 
   const biblioteca = estado.biblioteca
 
@@ -342,7 +385,7 @@ export function BibliotecaMateriales({ onVolver, className }) {
       // `guardarMaterial` devuelve null cuando el navegador no dejó escribir. El
       // formulario queda abierto con lo escrito: nada se pierde por cerrarlo.
       setErrorGuardado(
-        'No se pudo guardar el material en este navegador. Revisa el aviso de almacenamiento y exporta el proyecto a JSON para no perder el trabajo.',
+        'No se pudo guardar el material en este navegador. Revisa el aviso de almacenamiento y guarda el proyecto en el PC para no perder el trabajo.',
       )
       return
     }
@@ -384,6 +427,75 @@ export function BibliotecaMateriales({ onVolver, className }) {
     setRestaurando(false)
   }
 
+  function guardarEnElPc() {
+    setResultadoArchivo(null)
+    descargarJsonDeBiblioteca(biblioteca)
+  }
+
+  function abrirDesdeElPc() {
+    setResultadoArchivo(null)
+    if (refArchivo.current) refArchivo.current.click()
+  }
+
+  /** @param {import('react').ChangeEvent<HTMLInputElement>} evento */
+  async function alElegirArchivo(evento) {
+    const campo = evento.target
+    const archivo = campo.files && campo.files.length > 0 ? campo.files[0] : null
+    // Se limpia enseguida para poder volver a elegir el mismo archivo después
+    // de corregirlo.
+    campo.value = ''
+    if (!archivo) return
+
+    setAbriendo(true)
+    const resultado = await acciones.importarBiblioteca(archivo)
+    setAbriendo(false)
+
+    if (!resultado || resultado.ok !== true) {
+      setResultadoArchivo({
+        nivel: 'error',
+        titulo: 'No se pudo abrir el archivo',
+        texto:
+          (resultado && resultado.error) ||
+          'No se pudo abrir el archivo. Revisa que sea un JSON guardado por Kubikar.',
+      })
+      return
+    }
+
+    // Se declaran las dos cifras, incluida la de los omitidos: sin ella, abrir
+    // un archivo de 30 materiales y ver que no cambió nada se lee como falla.
+    const { agregados, omitidos } = resultado
+
+    if (agregados === 0 && omitidos === 0) {
+      setResultadoArchivo({
+        nivel: 'info',
+        titulo: 'El archivo estaba vacío',
+        texto: 'El archivo no traía ningún material. La biblioteca quedó como estaba.',
+      })
+      return
+    }
+
+    if (agregados === 0) {
+      setResultadoArchivo({
+        nivel: 'info',
+        titulo: 'No había nada nuevo que agregar',
+        texto:
+          omitidos === 1
+            ? 'El único material del archivo ya estaba en la biblioteca y quedó como estaba.'
+            : `Los ${formatearNumero(omitidos, 0)} materiales del archivo ya estaban en la biblioteca y quedaron como estaban.`,
+      })
+      return
+    }
+
+    setResultadoArchivo({
+      nivel: 'ok',
+      titulo: 'Biblioteca actualizada',
+      texto:
+        omitidos > 0
+          ? `${frasePorAgregados(agregados)} ${frasePorOmitidos(omitidos)}`
+          : frasePorAgregados(agregados),
+    })
+  }
+
   const usos = porEliminar ? porEliminar.usos : null
   const revisandoUsos = Boolean(porEliminar) && usos === null
 
@@ -411,11 +523,45 @@ export function BibliotecaMateriales({ onVolver, className }) {
               Volver al recinto
             </Boton>
           ) : null}
+          <Boton icono={Upload} cargando={abriendo} onClick={abrirDesdeElPc}>
+            Abrir desde el PC
+          </Boton>
+          <Boton
+            icono={Download}
+            deshabilitado={biblioteca.length === 0}
+            title="Guardar la biblioteca completa como archivo"
+            onClick={guardarEnElPc}
+          >
+            Guardar en el PC
+          </Boton>
           <Boton variante="primaria" icono={Plus} onClick={abrirNuevo}>
             Agregar material
           </Boton>
         </div>
       </header>
+
+      {/* El campo de archivo no se muestra: la acción visible es el botón. */}
+      <input
+        ref={refArchivo}
+        type="file"
+        accept="application/json,.json"
+        className="sr-only"
+        tabIndex={-1}
+        aria-hidden="true"
+        onChange={alElegirArchivo}
+      />
+
+      {resultadoArchivo ? (
+        <div className="border-b border-rule px-6 py-3">
+          <Aviso
+            nivel={resultadoArchivo.nivel}
+            titulo={resultadoArchivo.titulo}
+            onCerrar={() => setResultadoArchivo(null)}
+          >
+            {resultadoArchivo.texto}
+          </Aviso>
+        </div>
+      ) : null}
 
       {/* --- cuerpo ---------------------------------------------------------- */}
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
@@ -424,12 +570,15 @@ export function BibliotecaMateriales({ onVolver, className }) {
         ) : biblioteca.length === 0 ? (
           <EstadoVacio
             titulo="La biblioteca está vacía."
-            descripcion="Sin materiales no hay qué cubicar: los parámetros del módulo quedan sin opciones para elegir. Agrega el primero o vuelve a cargar los materiales de ejemplo."
+            descripcion="Sin materiales no hay qué cubicar: los parámetros del módulo quedan sin opciones para elegir. Agrega el primero, abre la biblioteca que guardaste en otro computador, o vuelve a cargar los materiales de ejemplo."
             encuadrado
             acciones={
               <>
                 <Boton variante="primaria" icono={Plus} onClick={abrirNuevo}>
                   Agregar material
+                </Boton>
+                <Boton icono={Upload} cargando={abriendo} onClick={abrirDesdeElPc}>
+                  Abrir desde el PC
                 </Boton>
                 <Boton icono={RotateCcw} onClick={restaurar} cargando={restaurando}>
                   Restaurar materiales de ejemplo
