@@ -23,6 +23,7 @@ npm run design:check   # tiene que salir []  (arreglo vacío = sin infracciones)
 git add -A
 git commit -m "mensaje en español, en imperativo, explicando el porqué"
 git push
+npm run publicar -- <salto>   # si el cambio toca el entregable · ver más abajo
 ```
 
 Reglas del respaldo:
@@ -43,6 +44,8 @@ Reglas del respaldo:
 - **El mensaje va en español** y dice el porqué, no el qué: el diff ya dice qué
   archivos cambiaron.
 - **Se empuja siempre.** Un commit local no es un respaldo.
+- **Y se publica.** El push respalda el código; lo que llega a faena es el
+  entregable. Ver la sección siguiente.
 
 ## El entregable y la publicación
 
@@ -84,6 +87,50 @@ token publicado.
 Kubikar no se actualiza solo, y no lo promete: una página web no escribe sobre el
 archivo que la abrió. El aviso baja el HTML nuevo a Descargas y dice que el viejo
 se reemplaza a mano.
+
+### Publicar con número nuevo: OBLIGATORIO en cada cambio que toca el entregable
+
+**Todo cambio de código que llegue al entregable se publica con un número de
+versión nuevo, en la misma sesión en que se hizo.** No se acumulan cambios "para
+publicar todos juntos después".
+
+La razón no es ceremonia de versionado. El entregable se copia a mano de un
+computador a otro, y el número que se ve en la barra superior es **lo único que
+distingue dos copias sobre la misma mesa**. Un cambio commiteado y no publicado
+deja a la faena cubicando con el código anterior mientras el repositorio dice
+otra cosa; y peor, si se publican dos entregables distintos bajo el mismo número,
+el mecanismo entero de aviso deja de servir para siempre: nadie puede volver a
+confiar en que 0.2.0 signifique una sola cosa.
+
+Qué salto corresponde:
+
+- **`patch`** (0.2.0 → 0.2.1): corrección que no cambia lo que el usuario ve ni
+  cómo se opera. Un cálculo que estaba mal, un texto, un borde.
+- **`minor`** (0.2.0 → 0.3.0): función nueva, control nuevo, o cualquier cambio
+  visible en la interfaz. Es el caso corriente.
+- **`major`** (0.2.0 → 1.0.0): cambia la manera de trabajar, o el formato de
+  archivo deja de leerse hacia atrás.
+
+Cómo se invoca. **El script pregunta las notas y la confirmación por consola**,
+así que desde un agente o un shell sin interactividad hay que pasarle las dos
+banderas o se queda colgado esperando:
+
+```sh
+npm run publicar -- minor --si --notas "Una linea, la que el usuario lee en el aviso"
+```
+
+Las notas van **sin acentos ni comillas dobles**: viajan al mensaje de commit a
+través del shell de Windows y ahí se estropean. El resto del producto sí lleva
+acentos; esta línea es la excepción, y es por el transporte.
+
+Lo que NO se publica: un cambio que no llega al entregable —`CLAUDE.md`,
+`PRODUCT.md`, `DESIGN.md`, una prueba— se commitea y se empuja como cualquier
+otro, pero no gasta número. Publicar un HTML idéntico al anterior con número
+nuevo le muestra a todas las copias una banda de actualización que no trae nada:
+es gritar lobo, y la próxima banda —la que sí importa— se descarta sin leer.
+
+Si el cambio de documento acompaña a uno de código, viajan juntos y se publica
+una sola vez.
 
 ## Arquitectura: las dos reglas que no se rompen
 
