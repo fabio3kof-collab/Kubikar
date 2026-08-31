@@ -1,6 +1,6 @@
 {
-  "version": "0.6.0",
+  "version": "0.7.0",
   "fecha": "2026-08-31",
-  "notas": "La pantalla de proyectos deja de repetir Crear proyecto y Abrir desde el PC cuando no hay ninguno guardado",
+  "notas": "La biblioteca deja de repetir Agregar material y Abrir desde el PC cuando esta vacia",
   "url": "https://raw.githubusercontent.com/fabio3kof-collab/Kubikar/main/Kubikar.html"
 }
