@@ -1,6 +1,6 @@
 {
-  "version": "0.3.0",
+  "version": "0.4.0",
   "fecha": "2026-08-31",
-  "notas": "Los tornillos se redondean al escalon de compra: bajo 50 un se lleva 50, y de ahi arriba a la centena siguiente",
+  "notas": "El escalon de compra de los tornillos pasa a la lista de compra: el recinto muestra la cantidad exacta y el total sube una sola vez",
   "url": "https://raw.githubusercontent.com/fabio3kof-collab/Kubikar/main/Kubikar.html"
 }
