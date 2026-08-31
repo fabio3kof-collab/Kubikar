@@ -62,6 +62,30 @@ Desktop\Kubikar\
 `vite.config.js` escribe `../Kubikar.html` y `scripts/publicar.mjs` lo lee desde
 ahí. Mover el repositorio de sitio rompe las dos cosas en silencio.
 
+### Clonar en un computador nuevo
+
+El clon va **dentro** del contenedor, no en su lugar:
+
+```sh
+mkdir Kubikar
+git clone https://github.com/fabio3kof-collab/Kubikar.git Kubikar\Kubikar-codigo
+cd Kubikar\Kubikar-codigo
+npm install
+```
+
+Clonar directo sobre el Escritorio deja el repositorio ocupando el lugar del
+contenedor. Eso no falla: el build escribe entonces `Desktop\Kubikar.html`,
+suelto entre los demás archivos, y `publicar` sube ese. El error se descubre en
+faena, con la versión equivocada sobre la mesa.
+
+Por eso la ubicación **se verifica sola** —`scripts/verificar-ubicacion.mjs`— en
+`npm install` y otra vez al empezar el build, antes de gastarlo. Si el clon quedó
+mal, el mensaje trae los comandos para moverlo con las rutas de esa máquina ya
+resueltas. No hay que acordarse de esta sección: basta con clonar y ejecutar.
+
+El guardián exige que el nivel de arriba sea la carpeta `Kubikar`, no un nombre
+para el clon: cada computador tiene el suyo y todos sirven.
+
 El entregable es autocontenido —JS, CSS y la fuente van embebidos— para que
 funcione con doble clic desde `file://`, sin servidor. El build **falla** si el
 CONTRATO DE DIRECCION de `index.html` no sobrevive al inlinado: un entregable que

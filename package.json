@@ -5,6 +5,7 @@
   "type": "module",
   "description": "Cubicacion de obra sobre planta dibujada. Karbec.",
   "scripts": {
+    "postinstall": "node scripts/verificar-ubicacion.mjs",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",

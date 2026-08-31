@@ -5,6 +5,7 @@ import { viteSingleFile } from 'vite-plugin-singlefile'
 import { copyFileSync, readFileSync, statSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { verificarUbicacion } from './scripts/verificar-ubicacion.mjs'
 
 const raiz = dirname(fileURLToPath(import.meta.url))
 
@@ -28,7 +29,9 @@ const MARCA_CONTRATO = 'CONTRATO DE DIRECCION'
  * Vite, la que carga `/src/main.jsx` en dev.
  *
  * La hermandad de las dos rutas es una dependencia real del build, no una
- * convencion; `scripts/publicar.mjs` lee el entregable desde ahi.
+ * convencion; `scripts/publicar.mjs` lee el entregable desde ahi. Por eso el
+ * plugin verifica la ubicacion ANTES de compilar: un clon fuera de su carpeta
+ * contenedora no falla, escribe el entregable en otra parte, que es peor.
  *
  * @returns {import('vite').Plugin}
  */
@@ -36,6 +39,11 @@ function entregableEnEspacioDeTrabajo() {
   return {
     name: 'kubikar:entregable-en-espacio-de-trabajo',
     apply: 'build',
+    // Antes de gastar el build: si el repositorio esta fuera de su carpeta
+    // contenedora, `..` no es donde va el entregable. Ver scripts/verificar-ubicacion.mjs.
+    buildStart() {
+      verificarUbicacion(raiz)
+    },
     closeBundle() {
       const origen = resolve(raiz, 'dist/index.html')
       const html = readFileSync(origen, 'utf8')
