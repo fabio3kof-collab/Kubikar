@@ -1,6 +1,6 @@
 {
-  "version": "0.2.0",
+  "version": "0.3.0",
   "fecha": "2026-08-31",
-  "notas": "Abrir desde el PC junto a Guardar en el PC, y la biblioteca de materiales como archivo propio.",
+  "notas": "Los tornillos se redondean al escalon de compra: bajo 50 un se lleva 50, y de ahi arriba a la centena siguiente",
   "url": "https://raw.githubusercontent.com/fabio3kof-collab/Kubikar/main/Kubikar.html"
 }
