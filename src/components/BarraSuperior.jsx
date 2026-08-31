@@ -22,7 +22,9 @@
 
    4. LA BARRA SE ENCOGE QUITANDO, NO APILANDO. Bajo 900px aparece el
       desplegable de recintos y se retira el botón de renombrar, que ya tiene su
-      lugar en la vista de proyectos. Bajo 640px las tres salidas del trabajo
+      lugar en la vista de proyectos. Bajo 900px también se retira la versión,
+      que es dato de identificación y no de trabajo. Bajo 640px las tres salidas
+      del trabajo
       —Biblioteca, JSON, CSV— se repliegan en un solo botón de desbordamiento.
       Sin eso la cabecera se reparte en cinco filas y le come al lienzo la mitad
       de la pantalla, y el lienzo es la única zona que nunca desaparece.
@@ -46,6 +48,7 @@ import {
 } from 'lucide-react'
 
 import { UNIDADES } from '../core/units.js'
+import { FECHA_BUILD, VERSION_ACTUAL } from '../data/actualizaciones.js'
 import { descargarCsvDeProyecto, descargarJsonDeProyecto } from '../export/descargar.js'
 import { useApp } from '../state/AppState.jsx'
 import { Boton, CampoTexto, Cruz, Detente, Dialogo, Regla, Rotulo, Selector } from '../ui/index.js'
@@ -198,6 +201,19 @@ export function BarraSuperior() {
         <Cruz size={16} className="text-accent" />
         Kubikar
       </h1>
+
+      {/* La versión de esta copia, en registro de rótulo. No es decoración: el
+          entregable se copia a mano de un PC a otro, y sin este número no hay
+          forma de saber cuál de las dos copias que hay sobre la mesa es la
+          vigente. La fecha de compilación va en el `title` porque desempata dos
+          builds del mismo número, cosa que solo importa cuando ya se sospecha
+          de una copia. */}
+      <Rotulo
+        className="shrink-0 max-[900px]:hidden"
+        title={FECHA_BUILD ? `Compilada el ${FECHA_BUILD}` : 'Versión de esta copia'}
+      >
+        {`v ${VERSION_ACTUAL}`}
+      </Rotulo>
 
       <span className="h-6 shrink-0">
         <Regla orientacion="vertical" />

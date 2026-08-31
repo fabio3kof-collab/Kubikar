@@ -8,7 +8,7 @@ web
 
 ## Stack
 
-Definido por el usuario: React + Tailwind CSS, tokens de diseño como variables CSS consumidas desde la configuración de Tailwind, lienzo en SVG (no canvas), iconos con `lucide-react`, persistencia con localStorage del navegador encapsulada tras una única capa de acceso a datos asíncrona. Componentes propios; primitivas de terceros solo si son sin estilo y se alinean a los tokens. Sin backend, sin base de datos remota, sin autenticación, sin llamadas a APIs externas ni carga de recursos por red en tiempo de ejecución.
+Definido por el usuario: React + Tailwind CSS, tokens de diseño como variables CSS consumidas desde la configuración de Tailwind, lienzo en SVG (no canvas), iconos con `lucide-react`, persistencia con localStorage del navegador encapsulada tras una única capa de acceso a datos asíncrona. Componentes propios; primitivas de terceros solo si son sin estilo y se alinean a los tokens. Sin backend, sin base de datos remota, sin autenticación. La única llamada por red en tiempo de ejecución es el chequeo de versión contra GitHub descrito en Capabilities and Constraints: es opcional, no bloquea nada y ningún dato del proyecto sale del navegador.
 
 ## Users
 
@@ -65,9 +65,14 @@ Alcance funcional confirmado:
 - Exportación a JSON del proyecto completo con esquema estable y versionado.
 - Impresión en papel de dos documentos, con botón propio en cada vista: el consolidado como lista de compra —lo que quedó fuera, la tabla con su total y la composición por recinto—, y el recinto como lámina de terreno —la planta con su despiece y sus cotas, el listado de materiales y la memoria de cálculo de cada línea—. Decisión del usuario, agosto 2026.
 
+- Entregable de un solo archivo. Kubikar se lleva a faena como un `Kubikar.html` autocontenido —código, estilos y fuente embebidos— que se abre con doble clic desde el disco, sin servidor y sin instalar nada. Decisión del usuario, agosto 2026.
+- Aviso de versión nueva. Al abrirse, cada copia consulta el manifiesto publicado en el repositorio público y avisa si hay una versión posterior a la suya, con una banda que ofrece bajar el archivo nuevo. El número de versión de la copia está siempre visible en la barra superior. Existe porque el entregable se copia a mano de un computador a otro: sin esto, una copia vieja sigue cubicando con un cálculo corregido hace meses y eso se descubre cuando falta material en faena. Decisión del usuario, agosto 2026.
+
 Restricciones técnicas confirmadas:
 
-- Sin backend, sin base de datos remota, sin autenticación, sin llamadas a APIs externas ni carga de recursos por red en tiempo de ejecución.
+- Sin backend, sin base de datos remota, sin autenticación.
+- Una sola llamada por red en tiempo de ejecución, y es prescindible: el chequeo de versión contra `raw.githubusercontent.com`. No envía nada —ningún proyecto, ninguna medida, ningún identificador—, solo lee un manifiesto público. Falla en silencio y sin reintento: sin conexión, con GitHub caído o con el manifiesto roto, Kubikar arranca y trabaja igual. Estar sin internet es el caso normal en faena, no un error que reportar. Ningún otro recurso se carga por red: la aplicación completa está dentro del archivo.
+- Kubikar no se actualiza solo y no lo promete. Una página web no puede escribir sobre el archivo que la abrió; el aviso deja el archivo nuevo en Descargas y el usuario reemplaza el viejo a mano.
 - Toda la persistencia es local en el navegador y sobrevive al recargar la página.
 - Toda la persistencia queda encapsulada tras una única capa de acceso a datos con métodos asíncronos, de modo que el almacenamiento local se pueda reemplazar más adelante por llamadas a la API de la plataforma Karbec cambiando solo esa capa, sin tocar la interfaz ni los módulos de cálculo. No se dispersan llamadas de almacenamiento por los componentes.
 - No se implementa optimización de cortes. La cantidad sale de las corridas y de las posiciones reales sobre la planta, con el retazo corto descartado según lo que declara el material, pero no se empaqueta buscando el óptimo, no se mezclan materiales distintos, no se numeran las piezas y no se reutiliza retazo entre recintos. La heurística es declarada y reconstruible a mano: las piezas se cortan de mayor a menor y cada una entra en la primera barra abierta donde quepa. Decisión del usuario, agosto 2026, después de que el método por área dejara material corto en obra.

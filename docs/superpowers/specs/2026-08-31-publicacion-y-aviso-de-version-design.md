@@ -125,11 +125,17 @@ El manifiesto es `{ version, fecha, notas, url }`.
 
 ### Preferencias
 
-`kubikar.v1.preferencias` gana dos campos, por la puerta que ya existe
+`kubikar.v1.preferencias` gana **un** campo, por la puerta que ya existe
 (`repo.js`; ningún componente habla con `storage.js`):
 
-- `buscarActualizaciones` — por defecto `true`.
-- `versionDescartada` — el número que el usuario ya vio y descartó.
+- `versionDescartada` — el número que el usuario ya vio y descartó. Se guarda el
+  número y no un booleano: descartar la 0.2.0 no puede silenciar la 0.3.0.
+
+AeroPlan tiene además un interruptor `buscarActualizaciones`, alcanzable desde su
+paleta de comandos. **Acá no entra.** Kubikar no tiene paleta ni panel de
+ajustes, así que sería una preferencia que nadie puede tocar: exactamente el
+campo que promete gobernar algo y no lo gobierna contra el que ya advierte el
+diseño de los tornillos del cielo.
 
 ### Interfaz
 
@@ -176,8 +182,8 @@ raíz, no la carpeta intermedia.
 
 ## Riesgos conocidos
 
-- **El peso del entregable.** Con la fuente embebida, AeroPlan quedó en 2,2 MB.
-  El de Kubikar se mide en el primer build y se informa.
+- **El peso del entregable.** Medido: **893 kB** con todo embebido, contra los
+  2,2 MB de AeroPlan.
 - **Un HTML grande commiteado en cada versión** engorda el repositorio. Es el
   precio de que el entregable sea descargable sin token, y es el mismo que ya
   paga AeroPlan.

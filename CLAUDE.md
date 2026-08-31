@@ -16,6 +16,7 @@ tarea por cerrada.** No se acumulan cambios "para después".
 El ciclo completo, sin saltarse pasos:
 
 ```sh
+git pull --ff-only     # ANTES de tocar nada: traer lo del otro computador
 npm run build          # tiene que pasar
 npm test               # tiene que salir en verde
 npm run design:check   # tiene que salir []  (arreglo vacío = sin infracciones)
@@ -26,6 +27,10 @@ git push
 
 Reglas del respaldo:
 
+- **Se trae ANTES de empezar, no al final.** Empezar sin traer produce dos
+  historias que divergen, y entonces el push se rechaza cuando el trabajo ya
+  está hecho y hay que rebasear a mano. `--ff-only` es a propósito: si no puede
+  avanzar de frente, algo pasó y hay que mirarlo, no fusionarlo a ciegas.
 - **Nunca se commitea con el build roto.** El respaldo sirve para retomar en otra
   máquina; retomar sobre un árbol que no compila no es retomar.
 - **`npm test` es parte del ciclo.** Corre con `node --test`, sin dependencias.
@@ -38,6 +43,47 @@ Reglas del respaldo:
 - **El mensaje va en español** y dice el porqué, no el qué: el diff ya dice qué
   archivos cambiaron.
 - **Se empuja siempre.** Un commit local no es un respaldo.
+
+## El entregable y la publicación
+
+Kubikar se lleva a faena como **un solo archivo**. El repositorio vive dentro de
+una carpeta contenedora, y el build deja el entregable un nivel más arriba:
+
+```
+Desktop\Kubikar\
+├── Kubikar-codigo\        ← este repositorio
+└── Kubikar.html           ← el entregable: lo que de verdad se abre
+```
+
+**Esa hermandad es una dependencia real del build, no una convención.**
+`vite.config.js` escribe `../Kubikar.html` y `scripts/publicar.mjs` lo lee desde
+ahí. Mover el repositorio de sitio rompe las dos cosas en silencio.
+
+El entregable es autocontenido —JS, CSS y la fuente van embebidos— para que
+funcione con doble clic desde `file://`, sin servidor. El build **falla** si el
+CONTRATO DE DIRECCION de `index.html` no sobrevive al inlinado: un entregable que
+no se puede auditar no sirve.
+
+`npm run publicar` hace el ciclo completo, pensado para trabajar desde varios PCs:
+
+1. **Trae de GitHub antes de compilar** (`fetch` + `merge --ff-only`). Si se
+   publicó desde el otro computador, este clon está atrasado y el push del final
+   sería rechazado con el build ya gastado. Falla temprano y con mensaje
+   accionable.
+2. Corre `npm test` y `npm run design:check`.
+3. Sube el número en `package.json`, compila, y deja `Kubikar.html` +
+   `version.json` en la raíz del repositorio.
+4. Commitea **solo esos tres archivos** y empuja, previa confirmación. El resto
+   del árbol queda intacto: publicar no barre con trabajo a medio hacer.
+
+Ese `version.json` es lo que consulta cada copia al abrirse
+(`src/data/actualizaciones.js`). El repositorio es **público** a propósito: es lo
+que permite el chequeo sin token, y un token horneado en el entregable sería un
+token publicado.
+
+Kubikar no se actualiza solo, y no lo promete: una página web no escribe sobre el
+archivo que la abrió. El aviso baja el HTML nuevo a Descargas y dice que el viejo
+se reemplaza a mano.
 
 ## Arquitectura: las dos reglas que no se rompen
 

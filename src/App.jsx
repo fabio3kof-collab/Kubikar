@@ -69,6 +69,7 @@ import { useCallback, useState, useSyncExternalStore } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 
 import { useApp } from './state/AppState.jsx'
+import { AvisoActualizacion } from './components/AvisoActualizacion.jsx'
 import { AvisoAlmacenamiento } from './components/AvisoAlmacenamiento.jsx'
 import { BarraSuperior } from './components/BarraSuperior.jsx'
 import { BibliotecaMateriales } from './components/BibliotecaMateriales.jsx'
@@ -367,7 +368,11 @@ export function App() {
           arreglo va acá y no en cada texto para lector de pantalla. */}
       <div className="kb-app relative flex h-[100dvh] w-full flex-col overflow-hidden bg-paper text-ink">
         <BarraSuperior />
+        {/* El orden entre las dos bandas es jerarquía, no casualidad: una falla
+            de guardado es trabajo a punto de perderse y una versión nueva se
+            puede posponer. La urgente va arriba. */}
         <AvisoAlmacenamiento />
+        <AvisoActualizacion />
         <main className="flex min-h-0 flex-1 flex-col overflow-hidden">{cuerpo()}</main>
       </div>
       <HojaImpresion />

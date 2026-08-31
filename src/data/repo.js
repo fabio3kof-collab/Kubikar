@@ -47,6 +47,7 @@ export { ErrorAlmacenamiento }
  * @property {boolean} verPiezas        dibujar las piezas de material en la planta
  * @property {boolean} verEjes          dibujar los ejes de elementos lineales
  * @property {number} pasoGrilla        paso de grilla en milímetros
+ * @property {string|null} versionDescartada  versión publicada que el usuario ya vio y descartó
  */
 
 /** @type {Preferencias} */
@@ -58,6 +59,10 @@ export const PREFERENCIAS_POR_DEFECTO = {
   verPiezas: true,
   verEjes: true,
   pasoGrilla: 100,
+  // Nunca se descartó ninguna: la primera versión nueva avisa. Guardar el
+  // número y no un booleano es lo que hace que descartar la 0.2.0 no silencie
+  // también la 0.3.0.
+  versionDescartada: null,
 }
 
 /**
@@ -454,6 +459,8 @@ export const repo = {
       verPiezas: booleanoDeDespiece(crudo, 'verPiezas'),
       verEjes: booleanoDeDespiece(crudo, 'verEjes'),
       pasoGrilla: Number.isFinite(paso) && paso > 0 ? paso : PREFERENCIAS_POR_DEFECTO.pasoGrilla,
+      versionDescartada:
+        typeof crudo.versionDescartada === 'string' ? crudo.versionDescartada : null,
     }
   },
 
@@ -476,6 +483,8 @@ export const repo = {
         Number.isFinite(Number(mezcla.pasoGrilla)) && Number(mezcla.pasoGrilla) > 0
           ? Number(mezcla.pasoGrilla)
           : PREFERENCIAS_POR_DEFECTO.pasoGrilla,
+      versionDescartada:
+        typeof mezcla.versionDescartada === 'string' ? mezcla.versionDescartada : null,
     }
     escribir(CLAVES.preferencias, limpio)
     return limpio
