@@ -477,6 +477,7 @@ El papel es un **documento aparte**, no la pantalla restilada. La rejilla de la 
 - **Do** montar la región de error de un campo desde el primer render, vacía y en `sr-only`, con `role="alert"`.
 - **Do** dejar que el texto visible de un control sea su nombre accesible; el `title` amplía, nunca contradice.
 - **Do** declarar el dato ausente: precio sin cargar deja la celda vacía con la razón en `sr-only`, y la declaración explícita se hace una sola vez, en la nota al pie.
+- **Do** dejar a la vista, deshabilitado, el control que ahora no tiene uso, en vez de esconderlo. Es la misma regla del dato ausente aplicada a la acción: la diagonal de tachado dice "todavía no", y esconderlo le quita al usuario la única pista de que esa salida existe. La razón, cuando no se deduce de la pantalla, va en tabla densa junto al control. **Se calla un control por una sola razón: que la misma salida ya esté ofrecida en otra parte de la pantalla**, como cuando un estado vacío toma el mando y la barra repetiría sus botones. Ahí no desaparece la acción, desaparece la copia.
 - **Do** nombrar en cada error el problema **y** la salida.
 - **Do** dar a cada control sus siete estados: reposo, hover, foco, activo, deshabilitado, cargando y error.
 
