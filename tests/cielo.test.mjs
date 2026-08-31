@@ -329,10 +329,8 @@ test('el tornillo de plancha se cuenta sobre los metros lineales de perfilería'
   const tornillos = linea(calcular(contextoConAccesorios()), 'cielo.tornillosPlancha')
   // 7 corridas de 4,00 m = 28,00 ml ÷ 0,20 m entre tornillos.
   assert.equal(tornillos.cantidadTeorica, 140)
-  // 140 un no se compran: se piden 200. La teórica queda intacta para auditar.
-  assert.equal(tornillos.cantidadFinal, 200)
+  assert.equal(tornillos.cantidadFinal, 140)
   assert.match(tornillos.nota, /28,00 ml de perfilería/)
-  assert.match(tornillos.nota, /140 un · compra de tornillos → 200 un/)
 })
 
 test('abrir la separación entre ejes BAJA el tornillo de plancha', () => {
@@ -344,10 +342,7 @@ test('abrir la separación entre ejes BAJA el tornillo de plancha', () => {
     calcular(contextoConAccesorios({ separacionCm: 60 })),
     'cielo.tornillosPlancha',
   )
-  assert.equal(a40.cantidadTeorica, 140)
-  assert.equal(a60.cantidadTeorica, 100)
-  // El redondeo de compra no puede tapar la caída: 200 un contra 100 un.
-  assert.equal(a40.cantidadFinal, 200)
+  assert.equal(a40.cantidadFinal, 140)
   assert.equal(a60.cantidadFinal, 100)
 })
 
@@ -355,12 +350,9 @@ test('el tornillo metal-metal cuenta los encuentros trazados y los colgantes', (
   const resultado = calcular(contextoConAccesorios())
   const metal = linea(resultado, 'cielo.tornillosMetal')
   // 7 corridas × 2 extremos × 2 un = 28, más 16 colgantes a uno cada uno.
-  assert.equal(metal.cantidadTeorica, 44)
-  // 44 un no llega a la compra chica: se piden 50.
-  assert.equal(metal.cantidadFinal, 50)
+  assert.equal(metal.cantidadFinal, 44)
   assert.match(metal.nota, /7 corridas × 2 extremos × 2 un = 28 un/)
   assert.match(metal.nota, /16 colgantes × 1 un = 16 un/)
-  assert.match(metal.nota, /44 un · compra de tornillos → 50 un/)
 })
 
 test('el tornillo del colgante usa el MISMO número que publica la línea de colgantes', () => {
@@ -372,87 +364,49 @@ test('el tornillo del colgante usa el MISMO número que publica la línea de col
   // 10,40 m² × 1,7 = 17,68 → 18 colgantes.
   assert.equal(colgantes.cantidadFinal, 18)
   assert.match(metal.nota, new RegExp(`${colgantes.cantidadFinal} colgantes × 1 un`))
-  // La teórica es la que tiene que cuadrar: la final ya subió al escalón de compra.
-  assert.equal(metal.cantidadTeorica, 28 + colgantes.cantidadFinal)
+  assert.equal(metal.cantidadFinal, 28 + colgantes.cantidadFinal)
 })
 
 /* -----------------------------------------------------------------------------
-   Redondeo de compra de los tornillos
+   Escalón de compra
    -----------------------------------------------------------------------------
-   Un tornillo no se compra de a uno. La cifra que llega a la ferretería sube al
-   escalón de compra, siempre hacia arriba, y la teórica queda intacta para poder
-   reconstruir el número a mano.
+   El módulo DECLARA el escalón y no lo aplica. El recinto muestra la cantidad
+   exacta que lleva —20 un son 20 un, y así se instalan— y la lista de compra
+   suma los recintos y sube el total una sola vez. Que estas pruebas exijan la
+   cantidad exacta acá es lo que impide que el redondeo vuelva a colarse al
+   recinto y triplique el material de un proyecto de tres piezas.
    -------------------------------------------------------------------------- */
 
-/**
- * Cantidad final de tornillos de plancha para una separación dada. Es la palanca
- * más directa sobre esa línea: 28,00 ml de perfilería ÷ el paso pedido.
- * @param {number} separacionTornilloCm
- */
-function tornillosPlanchaCon(separacionTornilloCm) {
-  const resultado = calcular(
-    contextoConAccesorios({ tornillosPlanchaSeparacionCm: separacionTornilloCm }),
-  )
-  return linea(resultado, 'cielo.tornillosPlancha')
-}
-
-test('bajo 50 un el tornillo se compra de a 50', () => {
-  // 28,00 ml ÷ 1,00 m = 28 un exactos. Nadie pide 28 tornillos.
-  const pocos = tornillosPlanchaCon(100)
-  assert.equal(pocos.cantidadTeorica, 28)
-  assert.equal(pocos.cantidadFinal, 50)
-  assert.match(pocos.nota, /28 un · compra de tornillos → 50 un/)
+test('las dos líneas de tornillo declaran su escalón de compra', () => {
+  const resultado = calcular(contextoConAccesorios())
+  for (const clave of ['cielo.tornillosPlancha', 'cielo.tornillosMetal']) {
+    assert.deepEqual(
+      linea(resultado, clave).compra,
+      { minimo: 50, paso: 100 },
+      `${clave} tiene que declarar el escalón para que la lista de compra lo aplique`,
+    )
+  }
 })
 
-test('desde 50 un el tornillo sube a la centena siguiente', () => {
-  // 28,00 ml ÷ 0,50 m = 56 un: el primer escalón después de la compra chica.
-  const cincuentaYalgo = tornillosPlanchaCon(50)
-  assert.equal(cincuentaYalgo.cantidadTeorica, 56)
-  assert.equal(cincuentaYalgo.cantidadFinal, 100)
-
-  // 28,00 ml ÷ 0,25 m = 112 un → 200.
-  const cientoYalgo = tornillosPlanchaCon(25)
-  assert.equal(cientoYalgo.cantidadTeorica, 112)
-  assert.equal(cientoYalgo.cantidadFinal, 200)
-
-  // 28,00 ml ÷ 0,08 m = 350 un → 400.
-  const trescientos = tornillosPlanchaCon(8)
-  assert.equal(trescientos.cantidadTeorica, 350)
-  assert.equal(trescientos.cantidadFinal, 400)
-})
-
-test('la centena exacta no gasta un escalón de más', () => {
-  // Con ejes a 60 cm son 5 corridas de 4,00 m = 20,00 ml ÷ 0,20 m = 100 un
-  // clavados. Subirlo a 200 sería regalar cien tornillos por un redondeo que no
-  // tenía nada que redondear. Y la nota se calla, porque "100 un → 100 un" es
-  // ruido en una hoja que se lee en terreno.
-  const justo = linea(
-    calcular(contextoConAccesorios({ separacionCm: 60 })),
+test('el recinto entrega la cantidad exacta, sin escalón aplicado', () => {
+  // 28,00 ml ÷ 1,00 m = 28 un. Si el recinto dijera 50, tres recintos iguales
+  // pedirían 150 tornillos donde hacen falta 84.
+  const pocos = linea(
+    calcular(contextoConAccesorios({ tornillosPlanchaSeparacionCm: 100 })),
     'cielo.tornillosPlancha',
   )
-  assert.equal(justo.cantidadTeorica, 100)
-  assert.equal(justo.cantidadFinal, 100)
-  assert.equal(/compra de tornillos/.test(justo.nota), false)
+  assert.equal(pocos.cantidadTeorica, 28)
+  assert.equal(pocos.cantidadFinal, 28)
+  assert.equal(/compra/i.test(pocos.nota), false, 'la nota del recinto no habla de compra')
 })
 
-test('el redondeo de compra no toca al colgante ni a la perfilería', () => {
-  // Es un redondeo de tornillo, no un redondeo general: el alambre se compra por
-  // rollo y el omega por barra, y ninguno de los dos se pide de a cien.
+test('el escalón lo declara el tornillo y nadie más', () => {
+  // El alambre se compra por rollo y el omega por barra: ninguno se pide de a
+  // cien, así que ninguno declara escalón.
   const resultado = calcular(contextoConAccesorios())
-  assert.equal(linea(resultado, 'cielo.colgantes').cantidadFinal, 16)
-  assert.equal(linea(resultado, 'cielo.perfil').cantidadFinal, 12)
-})
-
-test('el precio del tornillo se cobra sobre lo que se compra, no sobre lo que se usa', () => {
-  // El subtotal tiene que cuadrar con la boleta de la ferretería: si la línea
-  // dice 200 un, se pagaron 200.
-  const ctx = contextoConAccesorios()
-  ctx.biblioteca = ctx.biblioteca.map((m) =>
-    m.id === PUNTA_FINA.id ? { ...m, precioUnitario: 12 } : m,
-  )
-  const tornillos = linea(calcular(ctx), 'cielo.tornillosPlancha')
-  assert.equal(tornillos.cantidadFinal, 200)
-  assert.equal(tornillos.subtotal, 200 * 12)
+  for (const clave of ['cielo.colgantes', 'cielo.perfil', 'cielo.plancha', 'cielo.perimetral']) {
+    assert.equal(linea(resultado, clave).compra, null, `${clave} no debería declarar escalón`)
+  }
 })
 
 test('el colgante se sigue cubicando por superficie', () => {

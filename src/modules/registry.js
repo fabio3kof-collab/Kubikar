@@ -95,6 +95,15 @@
  * @property {number}  cantidadTeorica    // ANTES de desperdicio y de redondeo
  * @property {number}  desperdicioPct     // 0 si no aplica
  * @property {number}  cantidadFinal      // redondeada hacia arriba
+ * @property {{minimo:number,paso:number}|null} [compra]
+ *                                        // escalón de compra que el módulo DECLARA
+ *                                        // y NO aplica: la lista de compra lo aplica
+ *                                        // sobre la suma del proyecto, porque comprar
+ *                                        // se decide una vez para toda la obra y no
+ *                                        // por recinto. Ver `src/core/compra.js`.
+ *                                        // Ausente en casi todas las líneas: solo lo
+ *                                        // declara lo que la ferretería no despacha
+ *                                        // en la cantidad exacta, como un tornillo.
  * @property {string}  nota               // memoria de cálculo legible
  * @property {number|null} precioUnitario
  * @property {number|null} subtotal       // null si no hay precio

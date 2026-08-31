@@ -120,9 +120,15 @@ export function cantidadLegible(cantidad) {
 }
 
 /**
- * Composición de un grupo: qué recinto aportó cuánto y con qué precio se
- * multiplicó. Es la memoria de cálculo del consolidado, la cuenta que permite
- * reconstruir a mano la cifra de la fila.
+ * Composición de un grupo: qué recinto aportó cuánto, adónde subió el escalón de
+ * compra y con qué precio se multiplicó. Es la memoria de cálculo del
+ * consolidado, la cuenta que permite reconstruir a mano la cifra de la fila.
+ *
+ * El escalón se declara SIEMPRE que mueva la cifra, y nunca cuando no la mueve.
+ * Sin esto la línea diría «20 + 20 + 20 = 100», que es una suma falsa: quien la
+ * lee tiene que poder ver que 60 es la cuenta y 100 es lo que se pide. Este
+ * texto no sabe qué material lleva escalón —eso lo declara el módulo en su
+ * línea— y por eso habla de compra y no de tornillos.
  *
  * @param {Object} grupo
  * @returns {string}
@@ -131,9 +137,14 @@ export function composicionDeGrupo(grupo) {
   const aportes = grupo.detalle
     .map((aporte) => `${aporte.recintoNombre} ${cantidadLegible(aporte.cantidadFinal)}`)
     .join(' + ')
-  const suma = `${aportes} = ${cantidadLegible(grupo.cantidadFinal)} ${grupo.unidad}`
-  if (!grupo.conPrecio) return suma
-  return `${suma} · ${formatearCLP(grupo.precioUnitario)} por ${grupo.unidad} = ${formatearCLP(grupo.subtotal)}`
+  const sumada = grupo.cantidadSumada ?? grupo.cantidadFinal
+  const suma = `${aportes} = ${cantidadLegible(sumada)} ${grupo.unidad}`
+  const escalon =
+    grupo.compra && grupo.cantidadFinal !== sumada
+      ? ` · escalón de compra: mínimo ${cantidadLegible(grupo.compra.minimo)}, de ${cantidadLegible(grupo.compra.paso)} en ${cantidadLegible(grupo.compra.paso)} → ${cantidadLegible(grupo.cantidadFinal)} ${grupo.unidad}`
+      : ''
+  if (!grupo.conPrecio) return `${suma}${escalon}`
+  return `${suma}${escalon} · ${formatearCLP(grupo.precioUnitario)} por ${grupo.unidad} = ${formatearCLP(grupo.subtotal)}`
 }
 
 /**

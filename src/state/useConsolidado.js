@@ -18,9 +18,17 @@
    Las cantidades finales se suman ya redondeadas por recinto. Es deliberado: en
    obra cada recinto se corta aparte, así que el sobrante de uno no cubre al
    siguiente. Se suma lo que hay que comprar, no lo que teóricamente alcanzaría.
+
+   Sobre esa suma, y solo acá, se aplica el ESCALÓN DE COMPRA que la línea haya
+   declarado. Es la excepción a lo anterior y por la misma razón que lo anterior:
+   un retazo de barra no viaja al recinto siguiente, pero un tornillo sí, así que
+   la ferretería se visita una vez para toda la obra. Tres recintos de 20
+   tornillos son 60 tornillos que se piden como 100, no 150. Ver
+   `src/core/compra.js`.
    ========================================================================== */
 
 import { useMemo } from 'react'
+import { aplicarEscalon, normalizarEscalon } from '../core/compra.js'
 import { calcularRecinto } from './useCalculo.js'
 
 /**
@@ -41,7 +49,10 @@ import { calcularRecinto } from './useCalculo.js'
  * @property {string} nombre
  * @property {string} unidad
  * @property {number} cantidadTeorica suma de las teóricas, sin redondear
- * @property {number} cantidadFinal   suma de las finales ya redondeadas por recinto
+ * @property {number} cantidadSumada  suma de las finales ya redondeadas por recinto
+ * @property {number} cantidadFinal   lo que se compra: `cantidadSumada` subida al
+ *                                    escalón, o la misma cifra si no hay escalón
+ * @property {{minimo:number,paso:number}|null} compra  escalón declarado por las líneas
  * @property {number|null} precioUnitario
  * @property {number|null} subtotal   null cuando ninguna línea del grupo tiene precio
  * @property {boolean} conPrecio
@@ -155,7 +166,9 @@ export function consolidarProyecto(proyecto, biblioteca) {
           nombre: linea.nombre,
           unidad: linea.unidad,
           cantidadTeorica: 0,
+          cantidadSumada: 0,
           cantidadFinal: 0,
+          compra: null,
           precioUnitario: null,
           subtotal: null,
           conPrecio: false,
@@ -165,7 +178,13 @@ export function consolidarProyecto(proyecto, biblioteca) {
       }
 
       grupo.cantidadTeorica += numero(linea.cantidadTeorica)
-      grupo.cantidadFinal += numero(linea.cantidadFinal)
+      grupo.cantidadSumada += numero(linea.cantidadFinal)
+
+      // El escalón es del material, así que todas las líneas del grupo declaran
+      // el mismo. Se toma el primero válido y no se comparan entre sí: si un día
+      // difirieran, el desacuerdo sería un error del módulo y no algo que esta
+      // función pueda arbitrar sin inventar una regla.
+      if (grupo.compra === null) grupo.compra = normalizarEscalon(linea.compra)
 
       if (grupo.precioUnitario === null && typeof linea.precioUnitario === 'number') {
         grupo.precioUnitario = linea.precioUnitario
@@ -190,6 +209,18 @@ export function consolidarProyecto(proyecto, biblioteca) {
   let totalConPrecio = 0
   let lineasSinPrecio = 0
   for (const grupo of lista) {
+    // El escalón entra recién acá, con todos los recintos ya sumados: es el
+    // único momento del cálculo en que existe la cantidad que de verdad se va a
+    // pedir en la ferretería.
+    grupo.cantidadFinal = aplicarEscalon(grupo.cantidadSumada, grupo.compra)
+
+    // Y el costo se cobra sobre lo que se compra. Sumar los subtotales de cada
+    // recinto dejaría la boleta debajo de la cantidad que la fila de arriba pide,
+    // que es la clase de diferencia que aparece cuando ya se pagó.
+    if (grupo.conPrecio && grupo.precioUnitario !== null) {
+      grupo.subtotal = grupo.precioUnitario * grupo.cantidadFinal
+    }
+
     if (grupo.conPrecio) totalConPrecio += numero(grupo.subtotal)
     else lineasSinPrecio += 1
   }
