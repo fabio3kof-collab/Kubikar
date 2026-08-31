@@ -83,6 +83,10 @@ export function SelectorProyecto() {
   const proyectos = Array.isArray(estado.proyectos) ? estado.proyectos : []
   const activoId = estado.proyecto ? estado.proyecto.id : null
 
+  // Mientras no haya nada guardado, el estado vacío es el que manda: él dice qué
+  // falta y ofrece la salida. La cabecera calla para no decir lo mismo dos veces.
+  const listaVacia = !estado.cargando && proyectos.length === 0
+
   function abrirCreacion() {
     setNombreNuevo(`Proyecto ${proyectos.length + 1}`)
     setCreando(true)
@@ -153,14 +157,16 @@ export function SelectorProyecto() {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Boton variante="primaria" icono={FilePlus2} onClick={abrirCreacion}>
-            Crear proyecto
-          </Boton>
-          <Boton icono={Upload} cargando={trabajando} onClick={pedirArchivo}>
-            Abrir desde el PC
-          </Boton>
-        </div>
+        {listaVacia ? null : (
+          <div className="flex flex-wrap items-center gap-2">
+            <Boton variante="primaria" icono={FilePlus2} onClick={abrirCreacion}>
+              Crear proyecto
+            </Boton>
+            <Boton icono={Upload} cargando={trabajando} onClick={pedirArchivo}>
+              Abrir desde el PC
+            </Boton>
+          </div>
+        )}
       </header>
 
       <Regla tono="fuerte" />
@@ -190,7 +196,7 @@ export function SelectorProyecto() {
         <p className="kb-prose">Leyendo los proyectos guardados en este navegador.</p>
       ) : null}
 
-      {!estado.cargando && proyectos.length === 0 ? (
+      {listaVacia ? (
         <EstadoVacio
           encuadrado
           titulo="Todavía no hay proyectos."
@@ -200,7 +206,7 @@ export function SelectorProyecto() {
               <Boton variante="primaria" icono={FilePlus2} onClick={abrirCreacion}>
                 Crear proyecto
               </Boton>
-              <Boton icono={Upload} onClick={pedirArchivo}>
+              <Boton icono={Upload} cargando={trabajando} onClick={pedirArchivo}>
                 Abrir desde el PC
               </Boton>
             </>
