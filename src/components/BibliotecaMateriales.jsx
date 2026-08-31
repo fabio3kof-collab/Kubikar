@@ -340,6 +340,10 @@ export function BibliotecaMateriales({ onVolver, className }) {
 
   const biblioteca = estado.biblioteca
 
+  // Con la biblioteca vacia manda el estado vacio: el dice que falta y ofrece las
+  // tres salidas. La barra calla las dos que repetiria; conserva las suyas.
+  const bibliotecaVacia = !estado.cargando && biblioteca.length === 0
+
   /** Materiales por tipo, ordenados por nombre con las reglas del español. */
   const porTipo = useMemo(() => {
     /** @type {Record<string, Object[]>} */
@@ -523,9 +527,11 @@ export function BibliotecaMateriales({ onVolver, className }) {
               Volver al recinto
             </Boton>
           ) : null}
-          <Boton icono={Upload} cargando={abriendo} onClick={abrirDesdeElPc}>
-            Abrir desde el PC
-          </Boton>
+          {bibliotecaVacia ? null : (
+            <Boton icono={Upload} cargando={abriendo} onClick={abrirDesdeElPc}>
+              Abrir desde el PC
+            </Boton>
+          )}
           <Boton
             icono={Download}
             deshabilitado={biblioteca.length === 0}
@@ -534,9 +540,11 @@ export function BibliotecaMateriales({ onVolver, className }) {
           >
             Guardar en el PC
           </Boton>
-          <Boton variante="primaria" icono={Plus} onClick={abrirNuevo}>
-            Agregar material
-          </Boton>
+          {bibliotecaVacia ? null : (
+            <Boton variante="primaria" icono={Plus} onClick={abrirNuevo}>
+              Agregar material
+            </Boton>
+          )}
         </div>
       </header>
 
@@ -567,7 +575,7 @@ export function BibliotecaMateriales({ onVolver, className }) {
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
         {estado.cargando ? (
           <p className="kb-prose">Cargando la biblioteca.</p>
-        ) : biblioteca.length === 0 ? (
+        ) : bibliotecaVacia ? (
           <EstadoVacio
             titulo="La biblioteca está vacía."
             descripcion="Sin materiales no hay qué cubicar: los parámetros del módulo quedan sin opciones para elegir. Agrega el primero, abre la biblioteca que guardaste en otro computador, o vuelve a cargar los materiales de ejemplo."
@@ -614,15 +622,15 @@ export function BibliotecaMateriales({ onVolver, className }) {
             </div>
 
             {visibles === 0 ? (
+              /* Este vacío no es el de una biblioteca sin materiales, sino el de un
+                 filtro que no caza ninguno: la barra sigue arriba con "Agregar
+                 material". Repetirlo acá pondría el mismo botón dos veces en
+                 pantalla, y lo que de verdad resuelve este vacío -cambiar el
+                 filtro- son los rótulos que están justo encima. */
               <EstadoVacio
                 titulo="No hay materiales de este tipo."
-                descripcion="Agrega uno para poder elegirlo en los parámetros del módulo, o cambia el filtro para ver el resto de la biblioteca."
+                descripcion="Cambia el filtro para ver el resto de la biblioteca, o agrega uno de este tipo para poder elegirlo en los parámetros del módulo."
                 encuadrado
-                acciones={
-                  <Boton variante="primaria" icono={Plus} onClick={abrirNuevo}>
-                    Agregar material
-                  </Boton>
-                }
               />
             ) : (
               tiposVisibles
