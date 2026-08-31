@@ -25,6 +25,9 @@
    punto de unión —los dos extremos de cada corrida, más un colgante— porque une
    metal con metal. Solo el colgante se sigue consumiendo por superficie.
 
+   Y los dos se COMPRAN redondeados: bajo 50 un se lleva 50, y de ahí arriba se
+   sube a la centena siguiente. Ver `compraDeTornillos`.
+
    Sigue sin haber optimización de cortes: no se empaqueta, no se mezclan
    materiales, no se numeran piezas y no se reutiliza retazo entre recintos.
 
@@ -197,7 +200,8 @@ export const esquema = [
     preferir: ['punta fina', 'drywall', 'yeso'],
     dependeDe: 'tornillosPlanchaActivo',
     grupo: 'Accesorios',
-    ayuda: 'Drywall punta fina: fija la plancha al perfil.',
+    ayuda:
+      'Drywall punta fina: fija la plancha al perfil. La cantidad se redondea a la compra: bajo 50 un se lleva 50, y de ahí arriba se sube a la centena siguiente.',
   },
   {
     clave: 'tornillosPlanchaSeparacionCm',
@@ -233,7 +237,8 @@ export const esquema = [
     preferir: ['punta broca', 'lenteja', 'broca'],
     dependeDe: 'tornillosMetalActivo',
     grupo: 'Accesorios',
-    ayuda: 'Punta broca cabeza de lenteja: une el perimetral con los perfiles y el colgante con el perfil.',
+    ayuda:
+      'Punta broca cabeza de lenteja: une el perimetral con los perfiles y el colgante con el perfil. La cantidad se redondea a la compra: bajo 50 un se lleva 50, y de ahí arriba se sube a la centena siguiente.',
   },
   {
     clave: 'tornillosMetalPorEncuentro',
@@ -339,6 +344,58 @@ function f2(n) {
 function techo(n) {
   if (!Number.isFinite(n)) return 0
   return Math.ceil(Math.round(n * 1e6) / 1e6)
+}
+
+/**
+ * Compra mínima de tornillos y paso de compra sobre ella, en unidades.
+ *
+ * Un tornillo no se compra de a uno. En la ferretería se pide por puñado o por
+ * caja, y nadie despacha 358: el que llega con esa cifra redondea igual, pero en
+ * el mesón y sin dejar rastro en la cubicación. Estos dos números son ese
+ * redondeo escrito acá, donde queda auditado en la memoria de cálculo.
+ */
+const COMPRA_MINIMA_TORNILLOS = 50
+const PASO_COMPRA_TORNILLOS = 100
+
+/**
+ * Redondeo de compra de una línea de tornillos.
+ *
+ *   1 – 49    → 50           la compra chica: bajo eso no hay bolsa que pedir
+ *   50 – 100  → 100          desde la compra chica se sube a la centena
+ *   101 – 200 → 200          y de ahí en adelante, de cien en cien
+ *   358       → 400
+ *   1.150     → 1.200
+ *
+ * Siempre hacia arriba y nunca hacia abajo: un tornillo que falta detiene a la
+ * cuadrilla hasta que alguien baje a la ferretería, y uno que sobra se queda en
+ * la caja. El sesgo es a propósito y va en una sola dirección.
+ *
+ * Se aplica sobre la cantidad ya subida al entero, no sobre la teórica: el
+ * número que se redondea es el mismo que la nota acaba de declarar.
+ *
+ * @param {number} unidades  cantidad entera de tornillos
+ * @returns {number}
+ */
+function compraDeTornillos(unidades) {
+  if (!(unidades > 0)) return 0
+  if (unidades < COMPRA_MINIMA_TORNILLOS) return COMPRA_MINIMA_TORNILLOS
+  return Math.ceil(unidades / PASO_COMPRA_TORNILLOS) * PASO_COMPRA_TORNILLOS
+}
+
+/**
+ * Cierre de la memoria de una línea de tornillos: la cantidad al entero y, si el
+ * redondeo de compra la movió, adónde la subió.
+ *
+ * Se calla cuando no la movió, por la misma razón que `tramoDesperdicio` se calla
+ * en 0: escribir «100 un → 100 un» es ruido en una nota que se lee en terreno.
+ *
+ * @param {number} exactas
+ * @param {number} compra
+ * @returns {string}
+ */
+function tramoCompraTornillos(exactas, compra) {
+  if (compra === exactas) return `${exactas} un`
+  return `${exactas} un · compra de tornillos → ${compra} un`
 }
 
 /**
@@ -860,7 +917,8 @@ function cubicarTornillosPlancha(datos) {
   const mlPerfil = datos.corridas.reduce((suma, largo) => suma + largo, 0) / MM_POR_M
   const pasoM = datos.separacionCm / 100
   const teorica = mlPerfil / pasoM
-  const final = techo(teorica)
+  const exactas = techo(teorica)
+  const final = compraDeTornillos(exactas)
 
   return {
     linea: crearLinea({
@@ -871,7 +929,7 @@ function cubicarTornillosPlancha(datos) {
       cantidadTeorica: teorica,
       desperdicioPct: 0,
       cantidadFinal: final,
-      nota: `${f2(mlPerfil)} ml de perfilería ÷ ${f2(pasoM)} m entre tornillos = ${f2(teorica)} → ${final} un`,
+      nota: `${f2(mlPerfil)} ml de perfilería ÷ ${f2(pasoM)} m entre tornillos = ${f2(teorica)} → ${tramoCompraTornillos(exactas, final)}`,
       precioUnitario: datos.material.precioUnitario,
     }),
   }
@@ -929,7 +987,8 @@ function cubicarTornillosMetal(datos) {
     }
   }
 
-  const final = techo(teorica)
+  const exactas = techo(teorica)
+  const final = compraDeTornillos(exactas)
   const deEncuentros = `${datos.corridas.length} ${datos.corridas.length === 1 ? 'corrida' : 'corridas'} × 2 extremos × ${fCorto(porEncuentro)} un = ${encuentros * porEncuentro} un`
   const deColgantes =
     colgantes > 0
@@ -945,7 +1004,7 @@ function cubicarTornillosMetal(datos) {
       cantidadTeorica: teorica,
       desperdicioPct: 0,
       cantidadFinal: final,
-      nota: `${deEncuentros}${deColgantes} → ${final} un`,
+      nota: `${deEncuentros}${deColgantes} → ${tramoCompraTornillos(exactas, final)}`,
       precioUnitario: datos.material.precioUnitario,
     }),
   }
@@ -973,6 +1032,8 @@ function cubicarTornillosMetal(datos) {
  *              metal    = corridas × 2 extremos × porEncuentro + colgantes
  *   COLGANTES  teórica  = areaNeta × densidad
  *   final = ceil(teórica × (1 + desperdicio/100))
+ *   Los TORNILLOS suben además al escalón de compra: 50 un, o la centena
+ *   siguiente de ahí para arriba (ver `compraDeTornillos`).
  *
  * Ninguna división ocurre sin validar antes su divisor.
  *
